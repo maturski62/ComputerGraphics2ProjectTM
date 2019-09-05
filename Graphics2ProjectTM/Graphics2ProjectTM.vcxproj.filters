@@ -27,6 +27,9 @@
     <ClInclude Include="Graphics2ProjectTM.h">
       <Filter>Header Files</Filter>
     </ClInclude>
+    <ClInclude Include="Colors.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="Graphics2ProjectTM.cpp">

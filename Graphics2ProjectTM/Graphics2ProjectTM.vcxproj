@@ -151,6 +151,7 @@
     </Link>
   </ItemDefinitionGroup>
   <ItemGroup>
+    <ClInclude Include="Colors.h" />
     <ClInclude Include="framework.h" />
     <ClInclude Include="Graphics2ProjectTM.h" />
     <ClInclude Include="Resource.h" />

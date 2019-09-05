@@ -3,6 +3,7 @@
 
 #include "framework.h"
 #include "Graphics2ProjectTM.h"
+#include "Colors.h"
 
 #include <d3d11.h>
 #pragma comment(lib, "d3d11.lib")
@@ -11,7 +12,7 @@ ID3D11Device* myDevice;
 IDXGISwapChain* mySwapChain;
 ID3D11DeviceContext* myDeviceContext;
 ID3D11RenderTargetView* myRenderTargetView;
-D3D11_VIEWPORT* myViewPort;
+D3D11_VIEWPORT myViewPort;
 
 #define MAX_LOADSTRING 100
 
@@ -20,11 +21,14 @@ HINSTANCE hInst;                                // current instance
 WCHAR szTitle[MAX_LOADSTRING];                  // The title bar text
 WCHAR szWindowClass[MAX_LOADSTRING];            // the main window class name
 
+
 // Forward declarations of functions included in this code module:
 ATOM                MyRegisterClass(HINSTANCE hInstance);
 BOOL                InitInstance(HINSTANCE, int);
 LRESULT CALLBACK    WndProc(HWND, UINT, WPARAM, LPARAM);
 INT_PTR CALLBACK    About(HWND, UINT, WPARAM, LPARAM);
+void Render();
+void ReleaseInterfaces();
 
 int APIENTRY wWinMain(_In_ HINSTANCE hInstance,
                      _In_opt_ HINSTANCE hPrevInstance,
@@ -49,7 +53,7 @@ int APIENTRY wWinMain(_In_ HINSTANCE hInstance,
 
     HACCEL hAccelTable = LoadAccelerators(hInstance, MAKEINTRESOURCE(IDC_GRAPHICS2PROJECTTM));
 
-    MSG msg;
+	MSG msg;
 
     // Main message loop:
     while (true)//GetMessage(&msg, nullptr, 0, 0))
@@ -64,11 +68,14 @@ int APIENTRY wWinMain(_In_ HINSTANCE hInstance,
 
 		if (msg.message == WM_QUIT)
 			break;
+
+		//Rendering
+		Render();
     }
 
 	//Release all our DirectX11 interfaces
-	myDeviceContext->Release();
-
+	ReleaseInterfaces();
+	
     return (int) msg.wParam;
 }
 
@@ -136,7 +143,7 @@ BOOL InitInstance(HINSTANCE hInstance, int nCmdShow)
    swap.BufferDesc.Format = DXGI_FORMAT_R8G8B8A8_UNORM;
    swap.BufferDesc.Width = myWinRect.right - myWinRect.left;
    swap.BufferDesc.Height = myWinRect.bottom - myWinRect.top;
-   swap.BufferUsage = DXGI_USAGE_BACK_BUFFER;
+   swap.BufferUsage = DXGI_USAGE_RENDER_TARGET_OUTPUT;
    swap.OutputWindow = hWnd;
    swap.SampleDesc.Count = 1;
    swap.SwapEffect = DXGI_SWAP_EFFECT_DISCARD;
@@ -145,6 +152,24 @@ BOOL InitInstance(HINSTANCE hInstance, int nCmdShow)
    HRESULT hr;
    hr = D3D11CreateDeviceAndSwapChain(NULL, D3D_DRIVER_TYPE_HARDWARE, NULL, D3D11_CREATE_DEVICE_DEBUG, 
 										&dx11, 1, D3D11_SDK_VERSION, &swap, &mySwapChain, &myDevice, 0, &myDeviceContext);
+
+   ID3D11Resource* backbuffer;
+   hr = mySwapChain->GetBuffer(0, __uuidof(backbuffer), (void**)&backbuffer);
+
+   if (backbuffer)
+   {
+		hr = myDevice->CreateRenderTargetView(backbuffer, NULL, &myRenderTargetView);
+   }
+
+   backbuffer->Release();
+
+   //Assigning view port attributes
+   myViewPort.Width = (float)swap.BufferDesc.Width;
+   myViewPort.Height = (float)swap.BufferDesc.Height;
+   myViewPort.TopLeftX = myViewPort.TopLeftY = 0.0f;
+   myViewPort.MinDepth = 0.0f;
+   myViewPort.MaxDepth = 1.0f;
+
 
    return TRUE;
 }
@@ -180,14 +205,14 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
             }
         }
         break;
-    case WM_PAINT:
-        {
-            PAINTSTRUCT ps;
-            HDC hdc = BeginPaint(hWnd, &ps);
-            // TODO: Add any drawing code that uses hdc here...
-            EndPaint(hWnd, &ps);
-        }
-        break;
+    //case WM_PAINT:
+    //    {
+    //        PAINTSTRUCT ps;
+    //        HDC hdc = BeginPaint(hWnd, &ps);
+    //        // TODO: Add any drawing code that uses hdc here...
+    //        EndPaint(hWnd, &ps);
+    //    }
+    //    break;
     case WM_DESTROY:
         PostQuitMessage(0);
         break;
@@ -215,4 +240,24 @@ INT_PTR CALLBACK About(HWND hDlg, UINT message, WPARAM wParam, LPARAM lParam)
         break;
     }
     return (INT_PTR)FALSE;
+}
+
+void Render()
+{
+	//ID3D11RenderTargetView* tempRenderTargetView[] = { myRenderTargetView }; //To remove object, set it to nullptr in the array
+	//myDeviceContext->OMSetRenderTargets(1, tempRenderTargetView, nullptr);
+
+	//Clear screen to one color
+	float color[] = CYAN;
+	myDeviceContext->ClearRenderTargetView(myRenderTargetView, color);
+
+	mySwapChain->Present(0, 0);
+}
+
+void ReleaseInterfaces()
+{
+	myRenderTargetView->Release();
+	myDeviceContext->Release();
+	mySwapChain->Release();
+	myDevice->Release();
 }
