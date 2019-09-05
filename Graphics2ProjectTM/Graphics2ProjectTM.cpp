@@ -8,11 +8,25 @@
 #include <d3d11.h>
 #pragma comment(lib, "d3d11.lib")
 
+//For Init
 ID3D11Device* myDevice;
 IDXGISwapChain* mySwapChain;
 ID3D11DeviceContext* myDeviceContext;
+
+//For drawing
 ID3D11RenderTargetView* myRenderTargetView;
 D3D11_VIEWPORT myViewPort;
+
+struct MyVertex
+{
+	float xyzw[4];
+	float rgba[4];
+};
+
+ID3D11Buffer* vertexBuffer;
+ID3D11InputLayout* vertexLayout;
+ID3D11VertexShader* vertexShader; //HLSL
+ID3D11PixelShader* pixelShader; //HLSL
 
 #define MAX_LOADSTRING 100
 
@@ -170,6 +184,34 @@ BOOL InitInstance(HINSTANCE hInstance, int nCmdShow)
    myViewPort.MinDepth = 0.0f;
    myViewPort.MaxDepth = 1.0f;
 
+   //Draw a Triangle
+   MyVertex tri[] = // NDC Normalized Device Coordinates
+   { //xyzw, rgba
+	   { {0.0f, 0.5f, 0.0f, 1.0f}, WHITE },
+	   { {0.5f, -0.5f, 0.0f, 1.0f}, WHITE },
+	   { {-0.5f, -0.5f, 0.0f, 1.0f}, WHITE }
+   };
+
+   //Load the triangle on the graphics card
+   D3D11_BUFFER_DESC bDesc;
+   D3D11_SUBRESOURCE_DATA subData;
+   ZeroMemory(&bDesc, sizeof(bDesc));
+   ZeroMemory(&subData, sizeof(subData));
+
+   bDesc.BindFlags = D3D11_BIND_VERTEX_BUFFER;
+   bDesc.ByteWidth = sizeof(MyVertex) * 3;
+   bDesc.CPUAccessFlags = 0;
+   bDesc.MiscFlags = 0;
+   bDesc.StructureByteStride = 0;
+   bDesc.Usage = D3D11_USAGE_DEFAULT;
+
+   subData.pSysMem = tri;
+
+   hr = myDevice->CreateBuffer(&bDesc, &subData, &vertexBuffer);
+   //Write, compile, and load our shaders
+   myDevice->CreateVertexShader()
+   //Describe the vertex to D3D11
+   //myDevice->CreateInputLayout( , , &vertexLayout)
 
    return TRUE;
 }
@@ -257,6 +299,7 @@ void Render()
 void ReleaseInterfaces()
 {
 	myRenderTargetView->Release();
+	vertexBuffer->Release();
 	myDeviceContext->Release();
 	mySwapChain->Release();
 	myDevice->Release();
