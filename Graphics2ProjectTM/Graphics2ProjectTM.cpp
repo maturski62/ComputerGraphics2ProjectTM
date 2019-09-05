@@ -4,6 +4,15 @@
 #include "framework.h"
 #include "Graphics2ProjectTM.h"
 
+#include <d3d11.h>
+#pragma comment(lib, "d3d11.lib")
+
+ID3D11Device* myDevice;
+IDXGISwapChain* mySwapChain;
+ID3D11DeviceContext* myDeviceContext;
+ID3D11RenderTargetView* myRenderTargetView;
+D3D11_VIEWPORT* myViewPort;
+
 #define MAX_LOADSTRING 100
 
 // Global Variables:
@@ -43,14 +52,22 @@ int APIENTRY wWinMain(_In_ HINSTANCE hInstance,
     MSG msg;
 
     // Main message loop:
-    while (GetMessage(&msg, nullptr, 0, 0))
+    while (true)//GetMessage(&msg, nullptr, 0, 0))
     {
+		PeekMessage(&msg, nullptr, 0, 0, PM_REMOVE);
+
         if (!TranslateAccelerator(msg.hwnd, hAccelTable, &msg))
         {
             TranslateMessage(&msg);
             DispatchMessage(&msg);
         }
+
+		if (msg.message == WM_QUIT)
+			break;
     }
+
+	//Release all our DirectX11 interfaces
+	myDeviceContext->Release();
 
     return (int) msg.wParam;
 }
@@ -107,6 +124,27 @@ BOOL InitInstance(HINSTANCE hInstance, int nCmdShow)
 
    ShowWindow(hWnd, nCmdShow);
    UpdateWindow(hWnd);
+
+   RECT myWinRect;
+   GetClientRect(hWnd, &myWinRect);
+
+   //Attach d3d11 to out window
+   D3D_FEATURE_LEVEL dx11 = D3D_FEATURE_LEVEL_11_0;
+   DXGI_SWAP_CHAIN_DESC swap;
+   ZeroMemory(&swap, sizeof(DXGI_SWAP_CHAIN_DESC)); //assigns all elements in the swap to null
+   swap.BufferCount = 1;
+   swap.BufferDesc.Format = DXGI_FORMAT_R8G8B8A8_UNORM;
+   swap.BufferDesc.Width = myWinRect.right - myWinRect.left;
+   swap.BufferDesc.Height = myWinRect.bottom - myWinRect.top;
+   swap.BufferUsage = DXGI_USAGE_BACK_BUFFER;
+   swap.OutputWindow = hWnd;
+   swap.SampleDesc.Count = 1;
+   swap.SwapEffect = DXGI_SWAP_EFFECT_DISCARD;
+   swap.Windowed = true;
+
+   HRESULT hr;
+   hr = D3D11CreateDeviceAndSwapChain(NULL, D3D_DRIVER_TYPE_HARDWARE, NULL, D3D11_CREATE_DEVICE_DEBUG, 
+										&dx11, 1, D3D11_SDK_VERSION, &swap, &mySwapChain, &myDevice, 0, &myDeviceContext);
 
    return TRUE;
 }
