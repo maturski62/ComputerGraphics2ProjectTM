@@ -30,6 +30,9 @@
     <ClInclude Include="Colors.h">
       <Filter>Header Files</Filter>
     </ClInclude>
+    <ClInclude Include="Assets\StoneHenge.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="Graphics2ProjectTM.cpp">
@@ -52,5 +55,6 @@
   <ItemGroup>
     <FxCompile Include="VertexShader.hlsl" />
     <FxCompile Include="PixelShader.hlsl" />
+    <FxCompile Include="VertexMeshShader.hlsl" />
   </ItemGroup>
 </Project>
