@@ -14,8 +14,9 @@
 using namespace DirectX;
 
 //Shaders
+#include "VertexShader.csh"
 #include "VertexMeshShader.csh"
-#include "PixelMeshShader.csh"
+#include "PixelShader.csh"
 
 //Mesh Files
 #include "Assets/StoneHenge.h"
@@ -32,27 +33,30 @@ float aspectRatio = 1;
 
 struct MyVertex
 {
-	XMFLOAT4 position;
-	XMFLOAT2 texture;
-	XMFLOAT3 normal;
+	float xyzw[4];
+	float rgba[4];
 };
 
 unsigned int numVerts = 0;
 
-//Models
-MyVertex* stoneHenge = new MyVertex[ARRAYSIZE(StoneHenge_data)];
+ID3D11Buffer* vertexBuffer;
+ID3D11InputLayout* vertexLayout;
+ID3D11VertexShader* vertexShader; //HLSL
+ID3D11PixelShader* pixelShader; //HLSL
 
 //Shader Variables
 ID3D11Buffer* constantBuffer;
+<<<<<<< HEAD
 ID3D11SamplerState* samplerLinear;
 ID3D11ShaderResourceView* textureRV;
+=======
+>>>>>>> parent of f0beed6... Shaders and Data
 
 //Mesh data
 ID3D11Buffer* vertexBufferMesh;
 ID3D11Buffer* indiciesBufferMesh;
 ID3D11InputLayout* vertexMeshLayout;
 ID3D11VertexShader* vertexMeshShader;
-ID3D11PixelShader* pixelMeshShader;
 
 //ZBuffer for Depth
 ID3D11Texture2D* zBuffer;
@@ -80,6 +84,7 @@ BOOL                InitInstance(HINSTANCE, int);
 LRESULT CALLBACK    WndProc(HWND, UINT, WPARAM, LPARAM);
 INT_PTR CALLBACK    About(HWND, UINT, WPARAM, LPARAM);
 void UploadMatriciesToVideoCard();
+void Draw3DTriangle();
 void Render();
 void ReleaseInterfaces();
 
@@ -225,6 +230,29 @@ BOOL InitInstance(HINSTANCE hInstance, int nCmdShow)
    myViewPort.MinDepth = 0.0f;
    myViewPort.MaxDepth = 1.0f;
 
+   //Draw a Triangle
+   MyVertex tri[] = // NDC Normalized Device Coordinates
+   { //xyzw, rgba
+	   //Front
+	   { {0.0f, 1.0f, 0.0f, 1.0f}, WHITE },
+	   { {0.25f, -0.25f, -0.25f, 1.0f}, MAGENTA },
+	   { {-0.25f, -0.25f, -0.25f, 1.0f}, YELLOW },
+	   //Right
+	   { {0.0f, 1.0f, 0.0f, 1.0f}, WHITE },
+	   { {0.25f, -0.25f, 0.25f, 1.0f}, YELLOW },
+	   { {0.25f, -0.25f, -0.25f, 1.0f}, MAGENTA },
+	   //Back
+	   { {0.0f, 1.0f, 0.0f, 1.0f}, WHITE },
+	   { {-0.25f, -0.25f, 0.25f, 1.0f}, MAGENTA },
+	   { {0.25f, -0.25f, 0.25f, 1.0f}, YELLOW },
+	   //Left
+	   { {0.0f, 1.0f, 0.0f, 1.0f}, WHITE },
+	   { {-0.25f, -0.25f, -0.25f, 1.0f}, YELLOW },
+	   { {-0.25f, -0.25f, 0.25f, 1.0f}, MAGENTA },
+   };
+
+   numVerts = ARRAYSIZE(tri);
+
    //Load the triangle on the graphics card
    D3D11_BUFFER_DESC bDesc;
    D3D11_SUBRESOURCE_DATA subData;
@@ -238,6 +266,21 @@ BOOL InitInstance(HINSTANCE hInstance, int nCmdShow)
    bDesc.StructureByteStride = 0;
    bDesc.Usage = D3D11_USAGE_IMMUTABLE;
 
+   subData.pSysMem = tri;
+
+   hr = myDevice->CreateBuffer(&bDesc, &subData, &vertexBuffer);
+   //Write, compile, and load our shaders
+   hr = myDevice->CreateVertexShader(VertexShader, sizeof(VertexShader), nullptr, &vertexShader);
+   hr = myDevice->CreatePixelShader(PixelShader, sizeof(PixelShader), nullptr, &pixelShader);
+   //Describe the vertex to D3D11
+   D3D11_INPUT_ELEMENT_DESC vertexDesc[] =
+   {
+	   {"POSITION", 0, DXGI_FORMAT_R32G32B32A32_FLOAT, 0, 0, D3D11_INPUT_PER_VERTEX_DATA, 0},
+	   {"COLOR", 0, DXGI_FORMAT_R32G32B32A32_FLOAT, 0, 16, D3D11_INPUT_PER_VERTEX_DATA, 0},
+   };
+
+   hr = myDevice->CreateInputLayout(vertexDesc, 2, VertexShader, sizeof(VertexShader), &vertexLayout);
+
    //Create constant buffer
    ZeroMemory(&bDesc, sizeof(bDesc));
 
@@ -250,55 +293,31 @@ BOOL InitInstance(HINSTANCE hInstance, int nCmdShow)
 
    hr = myDevice->CreateBuffer(&bDesc, nullptr, &constantBuffer);
 
-   for (size_t i = 0; i < ARRAYSIZE(StoneHenge_data); i++)
-   {
-	   //Set POSITION
-	   stoneHenge[i].position.x = StoneHenge_data[i].pos[0];
-	   stoneHenge[i].position.y = StoneHenge_data[i].pos[1];
-	   stoneHenge[i].position.z = StoneHenge_data[i].pos[2];
-	   stoneHenge[i].position.w = 1.0f;
-	   //Set UV
-	   stoneHenge[i].texture.x = StoneHenge_data[i].uvw[0];
-	   stoneHenge[i].texture.y = StoneHenge_data[i].uvw[1];
-	   //SET NORMAL
-	   stoneHenge[i].normal.x = StoneHenge_data[i].nrm[0];
-	   stoneHenge[i].normal.y = StoneHenge_data[i].nrm[1];
-	   stoneHenge[i].normal.z = StoneHenge_data[i].nrm[2];
-   }
-
-   unsigned int stonehengeIndices[ARRAYSIZE(StoneHenge_indicies)];
-
-   for (size_t i = 0; i < ARRAYSIZE(StoneHenge_indicies); i++)
-   {
-	   stonehengeIndices[i] = StoneHenge_indicies[i];
-   }
-
-   //Load mesh STONE HEDGE
+   //Load mesh 
    bDesc.BindFlags = D3D11_BIND_VERTEX_BUFFER;
-   bDesc.ByteWidth = sizeof(MyVertex) * ARRAYSIZE(StoneHenge_data);
+   bDesc.ByteWidth = sizeof(StoneHenge_data);
    bDesc.CPUAccessFlags = 0;
    bDesc.MiscFlags = 0;
    bDesc.StructureByteStride = 0;
    bDesc.Usage = D3D11_USAGE_IMMUTABLE;
-   subData.pSysMem = stoneHenge;
+   subData.pSysMem = StoneHenge_data;
    hr = myDevice->CreateBuffer(&bDesc, &subData, &vertexBufferMesh);
    //index buffer mesh
    bDesc.BindFlags = D3D11_BIND_INDEX_BUFFER;
-   bDesc.ByteWidth = sizeof(unsigned int) * ARRAYSIZE(stonehengeIndices);
-   subData.pSysMem = stonehengeIndices;
+   bDesc.ByteWidth = sizeof(StoneHenge_indicies);
+   subData.pSysMem = StoneHenge_indicies;
    hr = myDevice->CreateBuffer(&bDesc, &subData, &indiciesBufferMesh);
 
    //Load new mesh shader
    hr = myDevice->CreateVertexShader(VertexMeshShader, sizeof(VertexMeshShader), nullptr, &vertexMeshShader);
-   hr = myDevice->CreatePixelShader(PixelMeshShader, sizeof(PixelMeshShader), nullptr, &pixelMeshShader);
 
-   //Make matching input layout for mesh vertex
+   //Make mathcing input layout for mesh vertex
    //Describe the vertex to D3D11
    D3D11_INPUT_ELEMENT_DESC meshInputDesc[] =
    {
-	   {"POSITION", 0, DXGI_FORMAT_R32G32B32A32_FLOAT, 0, D3D11_APPEND_ALIGNED_ELEMENT, D3D11_INPUT_PER_VERTEX_DATA, 0},
-	   {"TEXCOORD", 0, DXGI_FORMAT_R32G32_FLOAT		 , 0, D3D11_APPEND_ALIGNED_ELEMENT, D3D11_INPUT_PER_VERTEX_DATA, 0},
-	   {"NORMAL"  , 0, DXGI_FORMAT_R32G32B32_FLOAT	 , 0, D3D11_APPEND_ALIGNED_ELEMENT, D3D11_INPUT_PER_VERTEX_DATA, 0},
+	   {"POSITION", 0, DXGI_FORMAT_R32G32B32A32_FLOAT, 0, 0, D3D11_INPUT_PER_VERTEX_DATA, 0},
+	   {"TEXCOORD", 0, DXGI_FORMAT_R32G32B32A32_FLOAT, 0, 12, D3D11_INPUT_PER_VERTEX_DATA, 0},
+	   {"NORMAL", 0, DXGI_FORMAT_R32G32B32A32_FLOAT, 0, 24, D3D11_INPUT_PER_VERTEX_DATA, 0},
    };
 
    hr = myDevice->CreateInputLayout(meshInputDesc, ARRAYSIZE(meshInputDesc), VertexMeshShader, sizeof(VertexMeshShader), &vertexMeshLayout);
@@ -316,6 +335,7 @@ BOOL InitInstance(HINSTANCE hInstance, int nCmdShow)
    zDesc.SampleDesc.Count = 1;
    hr = myDevice->CreateTexture2D(&zDesc, nullptr, &zBuffer);
 
+<<<<<<< HEAD
    if (zBuffer)
    {
 		hr = myDevice->CreateDepthStencilView(zBuffer, nullptr, &zBufferView);
@@ -338,6 +358,9 @@ BOOL InitInstance(HINSTANCE hInstance, int nCmdShow)
    sampDesc.MinLOD = 0;
    sampDesc.MaxLOD = D3D11_FLOAT32_MAX;
    hr = myDevice->CreateSamplerState(&sampDesc, &samplerLinear);
+=======
+   hr = myDevice->CreateDepthStencilView(zBuffer, nullptr, &zBufferView);
+>>>>>>> parent of f0beed6... Shaders and Data
 
    return TRUE;
 }
@@ -417,25 +440,32 @@ void Render()
 	myDeviceContext->ClearRenderTargetView(myRenderTargetView, color);
 	myDeviceContext->ClearDepthStencilView(zBufferView, D3D11_CLEAR_DEPTH, 1, 0);
 
-	XMMATRIX temp = XMMatrixIdentity();
-	temp = XMMatrixTranslation(3.0f, 2.0f, -5.0f);
-	XMStoreFloat4x4(&myMatricies.worldMatrix, temp);
-	//view
-	temp = XMMatrixLookAtLH({ 1.0f, 5.0f, -10.0f }, { 0.0f, 0.0f, 0.0f }, { 0.0f, 1.0f, 0.0f });
-	XMStoreFloat4x4(&myMatricies.viewMatrix, temp);
-	//projection
-	temp = XMMatrixPerspectiveFovLH(3.14f / 2.0f, aspectRatio, 0.1f, 1000.0f);
-	XMStoreFloat4x4(&myMatricies.projMatrix, temp);
-
 	//Setup the pipeline
 	//Output merger
 	ID3D11RenderTargetView* tempRenderTargetView[] = { myRenderTargetView }; //To remove object, set it to nullptr in the array
 	myDeviceContext->OMSetRenderTargets(1, tempRenderTargetView, zBufferView);
 	//Rasterizer
 	myDeviceContext->RSSetViewports(1, &myViewPort);
+	//Input Assembler
+	myDeviceContext->IASetInputLayout(vertexLayout);
+	UINT strides[] = {sizeof(MyVertex)};
+	UINT offsets[] = {0};
+	ID3D11Buffer* tempVertexBuffer[] = { vertexBuffer };
+	myDeviceContext->IASetVertexBuffers(0, 1, tempVertexBuffer, strides, offsets);
+	myDeviceContext->IASetPrimitiveTopology(D3D11_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
+	//Vertex Shader Stage
+	myDeviceContext->VSSetShader(vertexShader, 0, 0);
+	//Pixel Shader Stage
+	myDeviceContext->PSSetShader(pixelShader, 0, 0);
+
+	//Make triangle 3D #done
+	Draw3DTriangle();
 
 	//Upload those matricies to the video card
 	UploadMatriciesToVideoCard();
+
+	//Draw
+	myDeviceContext->Draw(numVerts, 0);
 
 	//Immediate context 
 	//Get a more complex pre-made mesh (FBX, OBJ, custom header) #done
@@ -443,15 +473,19 @@ void Render()
 	//make sure shaders can process the mesh #done??
 	//place mesh somewhere else in the envirnoment
 	//setup pipeline
-	UINT meshStrides[] = { sizeof(MyVertex) };
+	UINT meshStrides[] = { sizeof(_OBJ_VERT_) };
 	UINT meshOffsets[] = { 0 };
 	ID3D11Buffer* tempMeshVertexBuffer[] = { vertexBufferMesh };
 	myDeviceContext->IASetVertexBuffers(0, 1, tempMeshVertexBuffer, meshStrides, meshOffsets);
 	myDeviceContext->IASetIndexBuffer(indiciesBufferMesh, DXGI_FORMAT_R32_UINT, 0);
+<<<<<<< HEAD
 	myDeviceContext->VSSetShader(vertexMeshShader, nullptr, 0);
 	myDeviceContext->PSSetShader(pixelMeshShader, nullptr, 0);
 	//myDeviceContext->PSSetSamplers(0, 1, &samplerLinear);
 	myDeviceContext->PSSetShaderResources(0, 1, &textureRV);
+=======
+	myDeviceContext->VSSetShader(vertexMeshShader, 0, 0);
+>>>>>>> parent of f0beed6... Shaders and Data
 	myDeviceContext->IASetInputLayout(vertexMeshLayout);
 
 	//Modify world matrix before drawing next mesh
@@ -459,8 +493,6 @@ void Render()
 	XMStoreFloat4x4(&myMatricies.worldMatrix, stoneHedge);
 	//Upload those matricies to the video card
 	UploadMatriciesToVideoCard();
-
-	myDeviceContext->IASetPrimitiveTopology(D3D11_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
 
 	//draw
 	myDeviceContext->DrawIndexed(ARRAYSIZE(StoneHenge_indicies), 0, 0);
@@ -470,15 +502,21 @@ void Render()
 
 void ReleaseInterfaces()
 {
+<<<<<<< HEAD
 	delete[] stoneHenge;
 	samplerLinear->Release();
 	textureRV->Release();
+=======
+>>>>>>> parent of f0beed6... Shaders and Data
 	zBuffer->Release();
 	zBufferView->Release();
+	vertexLayout->Release();
 	vertexMeshLayout->Release();
-	pixelMeshShader->Release();
+	pixelShader->Release();
+	vertexShader->Release();
 	vertexMeshShader->Release();
 	myRenderTargetView->Release();
+	vertexBuffer->Release();
 	vertexBufferMesh->Release();
 	indiciesBufferMesh->Release();
 	constantBuffer->Release();
@@ -500,4 +538,22 @@ void UploadMatriciesToVideoCard()
 	//By default HLSL matricies are column major
 	ID3D11Buffer* constants[] = { constantBuffer };
 	myDeviceContext->VSSetConstantBuffers(0, 1, constants);
+}
+
+void Draw3DTriangle()
+{
+	//make a pyrimad (more verts) #done
+	//make a world, view, and projection matrix
+	static float angle = 0; angle += 0.01f;
+	XMMATRIX temp = XMMatrixIdentity();
+	temp = XMMatrixTranslation(3.0f, 2.0f, -5.0f);
+	XMMATRIX temp2 = XMMatrixRotationY(angle);
+	temp = XMMatrixMultiply(temp2, temp);
+	XMStoreFloat4x4(&myMatricies.worldMatrix, temp);
+	//view
+	temp = XMMatrixLookAtLH({ 1.0f, 5.0f, -10.0f }, { 0.0f, 0.0f, 0.0f }, { 0.0f, 1.0f, 0.0f });
+	XMStoreFloat4x4(&myMatricies.viewMatrix, temp);
+	//projection
+	temp = XMMatrixPerspectiveFovLH(3.14f / 2.0f, aspectRatio, 0.1f, 1000.0f);
+	XMStoreFloat4x4(&myMatricies.projMatrix, temp);
 }

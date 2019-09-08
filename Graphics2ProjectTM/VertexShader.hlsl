@@ -8,15 +8,14 @@
 
 struct InputVertex
 {
-	float3 xyz : POSITION;
-	float3 uvw : TEXCOORD;
-	float3 nrm : NORMAL;
+	float4 xyzw : POSITION;
+	float4 rgba : COLOR;
 };
 
 struct OutputVertex
 {
 	float4 xyzw : SV_POSITION;
-	float4 rgba : OCOLOR;
+	float4 rgba : COLOR;
 };
 
 cbuffer SHADER_VARIABLES : register(b0)
@@ -29,8 +28,8 @@ cbuffer SHADER_VARIABLES : register(b0)
 OutputVertex main(InputVertex input)
 {
 	OutputVertex output = (OutputVertex)0;
-	output.xyzw = float4(input.xyz, 1);
-	output.rgba.rgb = input.nrm;
+	output.xyzw = input.xyzw;
+	output.rgba = input.rgba;
 	// Do math here (shader intrinsics)
 	output.xyzw = mul(output.xyzw, worldMatrix);
 	output.xyzw = mul(output.xyzw, viewMatrix);
