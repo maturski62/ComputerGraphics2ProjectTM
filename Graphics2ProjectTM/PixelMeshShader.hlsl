@@ -1,6 +1,6 @@
 
-//Texture2D txDiffuse : register(t0);
-//SamplerState samLinear : register(s0);
+Texture2D txDiffuse : register(t0);
+SamplerState samLinear : register(s0);
 
 struct OutputVertex
 {
@@ -16,9 +16,8 @@ float4 main(OutputVertex inputPixel) : SV_TARGET
 	return color;
 	//return float4(inputPixel.uvw, 1);
 
-	//float4 finalColor = 0;
-	//
-	//finalColor *= txDiffuse.Sample(samLinear, inputPixel.uvw);
-	//finalColor.a = 1;
+	//float4 finalColor = 1.0f;
+    //finalColor *= txDiffuse.Sample(samLinear, inputPixel.tex);
+	//finalColor.a = 1.0f;
 	//return finalColor;
 }

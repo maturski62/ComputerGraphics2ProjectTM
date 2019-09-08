@@ -4,9 +4,11 @@
 #include "framework.h"
 #include "Graphics2ProjectTM.h"
 #include "Colors.h"
+#include "DDSTextureLoader.h"
 
 #include <d3d11.h>
 #pragma comment(lib, "d3d11.lib")
+//#include <fbxsdk.h>
 
 #include <DirectXMath.h>
 using namespace DirectX;
@@ -43,6 +45,7 @@ MyVertex* stoneHenge = new MyVertex[ARRAYSIZE(StoneHenge_data)];
 //Shader Variables
 ID3D11Buffer* constantBuffer;
 ID3D11SamplerState* samplerLinear;
+ID3D11ShaderResourceView* textureRV;
 
 //Mesh data
 ID3D11Buffer* vertexBufferMesh;
@@ -318,16 +321,23 @@ BOOL InitInstance(HINSTANCE hInstance, int nCmdShow)
 		hr = myDevice->CreateDepthStencilView(zBuffer, nullptr, &zBufferView);
    }
 
+   // Load the Texture
+   //hr = CreateDDSTextureFromFile(g_pd3dDevice, L"CrateDDS.dds", nullptr, &g_pTextureRV);
+   if (myDevice)
+   {
+		hr = CreateDDSTextureFromFile(myDevice, L"Assets/stoneHenge.dds", nullptr, &textureRV);
+   }
+
    // Create the sample state
-   //D3D11_SAMPLER_DESC sampDesc = {};
-   //sampDesc.Filter = D3D11_FILTER_MIN_MAG_MIP_LINEAR;
-   //sampDesc.AddressU = D3D11_TEXTURE_ADDRESS_WRAP;
-   //sampDesc.AddressV = D3D11_TEXTURE_ADDRESS_WRAP;
-   //sampDesc.AddressW = D3D11_TEXTURE_ADDRESS_WRAP;
-   //sampDesc.ComparisonFunc = D3D11_COMPARISON_NEVER;
-   //sampDesc.MinLOD = 0;
-   //sampDesc.MaxLOD = D3D11_FLOAT32_MAX;
-   //hr = myDevice->CreateSamplerState(&sampDesc, &samplerLinear);
+   D3D11_SAMPLER_DESC sampDesc = {};
+   sampDesc.Filter = D3D11_FILTER_MIN_MAG_MIP_LINEAR;
+   sampDesc.AddressU = D3D11_TEXTURE_ADDRESS_WRAP;
+   sampDesc.AddressV = D3D11_TEXTURE_ADDRESS_WRAP;
+   sampDesc.AddressW = D3D11_TEXTURE_ADDRESS_WRAP;
+   sampDesc.ComparisonFunc = D3D11_COMPARISON_NEVER;
+   sampDesc.MinLOD = 0;
+   sampDesc.MaxLOD = D3D11_FLOAT32_MAX;
+   hr = myDevice->CreateSamplerState(&sampDesc, &samplerLinear);
 
    return TRUE;
 }
@@ -440,6 +450,8 @@ void Render()
 	myDeviceContext->IASetIndexBuffer(indiciesBufferMesh, DXGI_FORMAT_R32_UINT, 0);
 	myDeviceContext->VSSetShader(vertexMeshShader, nullptr, 0);
 	myDeviceContext->PSSetShader(pixelMeshShader, nullptr, 0);
+	//myDeviceContext->PSSetSamplers(0, 1, &samplerLinear);
+	myDeviceContext->PSSetShaderResources(0, 1, &textureRV);
 	myDeviceContext->IASetInputLayout(vertexMeshLayout);
 
 	//Modify world matrix before drawing next mesh
@@ -459,6 +471,8 @@ void Render()
 void ReleaseInterfaces()
 {
 	delete[] stoneHenge;
+	samplerLinear->Release();
+	textureRV->Release();
 	zBuffer->Release();
 	zBufferView->Release();
 	vertexMeshLayout->Release();
