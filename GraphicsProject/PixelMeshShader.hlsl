@@ -11,8 +11,8 @@ struct OutputVertex
 
 float4 main(OutputVertex inputPixel) : SV_TARGET
 {
-    //float4 color = float4(inputPixel.nrm, 1);
-	float4 color = {1.0f, 0.0f, 0.0f, 1.0f};
+    float4 color = float4(inputPixel.nrm, 1);
+	//float4 color = {1.0f, 0.0f, 0.0f, 1.0f};
     return color;
 	//return float4(inputPixel.uvw, 1);
 
