@@ -47,8 +47,11 @@ ID3D11PixelShader* pixelShader; //HLSL
 //Shader Variables
 ID3D11Buffer* constantBuffer;
 <<<<<<< HEAD
+<<<<<<< HEAD
 ID3D11SamplerState* samplerLinear;
 ID3D11ShaderResourceView* textureRV;
+=======
+>>>>>>> parent of f0beed6... Shaders and Data
 =======
 >>>>>>> parent of f0beed6... Shaders and Data
 
@@ -336,6 +339,7 @@ BOOL InitInstance(HINSTANCE hInstance, int nCmdShow)
    hr = myDevice->CreateTexture2D(&zDesc, nullptr, &zBuffer);
 
 <<<<<<< HEAD
+<<<<<<< HEAD
    if (zBuffer)
    {
 		hr = myDevice->CreateDepthStencilView(zBuffer, nullptr, &zBufferView);
@@ -358,6 +362,9 @@ BOOL InitInstance(HINSTANCE hInstance, int nCmdShow)
    sampDesc.MinLOD = 0;
    sampDesc.MaxLOD = D3D11_FLOAT32_MAX;
    hr = myDevice->CreateSamplerState(&sampDesc, &samplerLinear);
+=======
+   hr = myDevice->CreateDepthStencilView(zBuffer, nullptr, &zBufferView);
+>>>>>>> parent of f0beed6... Shaders and Data
 =======
    hr = myDevice->CreateDepthStencilView(zBuffer, nullptr, &zBufferView);
 >>>>>>> parent of f0beed6... Shaders and Data
@@ -479,10 +486,14 @@ void Render()
 	myDeviceContext->IASetVertexBuffers(0, 1, tempMeshVertexBuffer, meshStrides, meshOffsets);
 	myDeviceContext->IASetIndexBuffer(indiciesBufferMesh, DXGI_FORMAT_R32_UINT, 0);
 <<<<<<< HEAD
+<<<<<<< HEAD
 	myDeviceContext->VSSetShader(vertexMeshShader, nullptr, 0);
 	myDeviceContext->PSSetShader(pixelMeshShader, nullptr, 0);
 	//myDeviceContext->PSSetSamplers(0, 1, &samplerLinear);
 	myDeviceContext->PSSetShaderResources(0, 1, &textureRV);
+=======
+	myDeviceContext->VSSetShader(vertexMeshShader, 0, 0);
+>>>>>>> parent of f0beed6... Shaders and Data
 =======
 	myDeviceContext->VSSetShader(vertexMeshShader, 0, 0);
 >>>>>>> parent of f0beed6... Shaders and Data
@@ -503,9 +514,12 @@ void Render()
 void ReleaseInterfaces()
 {
 <<<<<<< HEAD
+<<<<<<< HEAD
 	delete[] stoneHenge;
 	samplerLinear->Release();
 	textureRV->Release();
+=======
+>>>>>>> parent of f0beed6... Shaders and Data
 =======
 >>>>>>> parent of f0beed6... Shaders and Data
 	zBuffer->Release();
