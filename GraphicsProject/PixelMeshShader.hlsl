@@ -2,6 +2,8 @@
 Texture2D stoneHengeDiffuse : register(t0);
 SamplerState samLinear : register(s0);
 
+
+
 struct OutputVertex
 {
     float4 pos : SV_POSITION;
@@ -11,15 +13,16 @@ struct OutputVertex
 
 float4 main(OutputVertex inputPixel) : SV_TARGET
 {
-    //float4 color = float4(inputPixel.nrm, 1);
+    //float4 color = float4(inputPixel.nrm, 1); // Color based on the normal
 	//float4 color = {1.0f, 0.0f, 0.0f, 1.0f};
     //return color;
-	//return float4(inputPixel.uvw, 1);
 
-    return stoneHengeDiffuse.Sample(samLinear, inputPixel.tex);
-	//float4 finalColor = 0;
-	
-	//finalColor *= txDiffuse.Sample(samLinear, inputPixel.uvw);
-	//finalColor.a = 1;
-	//return finalColor;
+    float4 finalColor = 0;
+    float4 vLightDir = {-0.577f, 0.577f, -0.577f, 1.0f};
+    float4 vLightColor = { 0.5f, 0.5f, 0.5f, 1.0f };
+
+    finalColor += saturate(dot(vLightDir, float4(inputPixel.nrm, 0)) * vLightColor);
+    finalColor *= stoneHengeDiffuse.Sample(samLinear, inputPixel.tex);
+    finalColor.a = 1.0f;
+	return finalColor;
 }

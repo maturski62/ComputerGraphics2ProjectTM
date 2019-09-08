@@ -255,7 +255,12 @@ BOOL InitInstance(HINSTANCE hInstance, int nCmdShow)
 		stoneHenge[i].normal.z = StoneHenge_data[i].nrm[2];
 	}
 
-	hr = CreateDDSTextureFromFile(myDevice, L"Assets/stoneHenge.dds", nullptr, &textureRV);
+	//Creating Texture
+	if (myDevice)
+	{
+		hr = CreateDDSTextureFromFile(myDevice, L"Assets/stoneHenge.dds", nullptr, &textureRV);
+	}
+
 	unsigned int stoneHengeIndices[ARRAYSIZE(StoneHenge_indicies)];
 
 	for (size_t i = 0; i < ARRAYSIZE(StoneHenge_indicies); i++)
