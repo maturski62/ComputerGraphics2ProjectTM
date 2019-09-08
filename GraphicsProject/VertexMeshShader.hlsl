@@ -31,12 +31,13 @@ OutputVertex main(InputVertex input)
 {
 	OutputVertex output = (OutputVertex)0;
 	output.pos = input.pos;
+    output.tex = input.tex;
 	output.nrm = input.nrm;
 	// Do math here (shader intrinsics)
     output.pos = mul(output.pos, worldMatrix);
 	output.pos = mul(output.pos, viewMatrix);
 	output.pos = mul(output.pos, projMatrix);
-    output.pos = mul(float4(output.nrm, 0), worldMatrix);
+    output.nrm = mul(float4(output.nrm, 0), worldMatrix);
 	//Don't do perspective divide, it is done automatically
 
 	return output;

@@ -163,12 +163,12 @@
     </Link>
   </ItemDefinitionGroup>
   <ItemGroup>
-    <ClInclude Include="Assets\StoneHenge.h" />
     <ClInclude Include="Colors.h" />
     <ClInclude Include="DDSTextureLoader.h" />
     <ClInclude Include="framework.h" />
     <ClInclude Include="GraphicsProject.h" />
     <ClInclude Include="Resource.h" />
+    <ClInclude Include="Shaders.h" />
     <ClInclude Include="targetver.h" />
   </ItemGroup>
   <ItemGroup>

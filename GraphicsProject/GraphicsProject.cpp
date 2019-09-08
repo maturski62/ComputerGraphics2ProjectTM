@@ -18,6 +18,7 @@ using namespace DirectX;
 
 //Mesh Files
 #include "Assets/StoneHenge.h"
+#include "Assets/test pyramid.h"
 
 //For Init
 ID3D11Device* myDevice;
@@ -38,11 +39,12 @@ struct MyVertex
 
 //Models
 MyVertex* stoneHenge = new MyVertex[ARRAYSIZE(StoneHenge_data)];
+MyVertex* pyramid = new MyVertex[ARRAYSIZE(test_pyramid_data)];
 
 //Shader Variables
 ID3D11Buffer* constantBuffer;
-//ID3D11SamplerState* samplerLinear;
-//ID3D11ShaderResourceView* textureRV;
+ID3D11SamplerState* samplerLinear;
+ID3D11ShaderResourceView* textureRV;
 
 //Mesh data
 ID3D11Buffer* vertexBufferMesh;
@@ -222,7 +224,7 @@ BOOL InitInstance(HINSTANCE hInstance, int nCmdShow)
 	myViewPort.MinDepth = 0.0f;
 	myViewPort.MaxDepth = 1.0f;
 
-	//Load the triangle on the graphics card
+	//Load the mesh on the graphics card
 	D3D11_BUFFER_DESC bDesc;
 	D3D11_SUBRESOURCE_DATA subData;
 	ZeroMemory(&bDesc, sizeof(bDesc));
@@ -253,6 +255,7 @@ BOOL InitInstance(HINSTANCE hInstance, int nCmdShow)
 		stoneHenge[i].normal.z = StoneHenge_data[i].nrm[2];
 	}
 
+	hr = CreateDDSTextureFromFile(myDevice, L"Assets/stoneHenge.dds", nullptr, &textureRV);
 	unsigned int stoneHengeIndices[ARRAYSIZE(StoneHenge_indicies)];
 
 	for (size_t i = 0; i < ARRAYSIZE(StoneHenge_indicies); i++)
@@ -262,7 +265,7 @@ BOOL InitInstance(HINSTANCE hInstance, int nCmdShow)
 
 	//Load mesh 
 	bDesc.BindFlags = D3D11_BIND_VERTEX_BUFFER;
-	bDesc.ByteWidth = sizeof(MyVertex) * ARRAYSIZE(StoneHenge_data);;
+	bDesc.ByteWidth = sizeof(MyVertex) * ARRAYSIZE(StoneHenge_data);
 	bDesc.CPUAccessFlags = 0;
 	bDesc.MiscFlags = 0;
 	bDesc.StructureByteStride = 0;
@@ -315,15 +318,15 @@ BOOL InitInstance(HINSTANCE hInstance, int nCmdShow)
 	}
 
 	// Create the sample state
-	//D3D11_SAMPLER_DESC sampDesc = {};
-	//sampDesc.Filter = D3D11_FILTER_MIN_MAG_MIP_LINEAR;
-	//sampDesc.AddressU = D3D11_TEXTURE_ADDRESS_WRAP;
-	//sampDesc.AddressV = D3D11_TEXTURE_ADDRESS_WRAP;
-	//sampDesc.AddressW = D3D11_TEXTURE_ADDRESS_WRAP;
-	//sampDesc.ComparisonFunc = D3D11_COMPARISON_NEVER;
-	//sampDesc.MinLOD = 0;
-	//sampDesc.MaxLOD = D3D11_FLOAT32_MAX;
-	//hr = myDevice->CreateSamplerState(&sampDesc, &samplerLinear);
+	D3D11_SAMPLER_DESC sampDesc = {};
+	sampDesc.Filter = D3D11_FILTER_MIN_MAG_MIP_LINEAR;
+	sampDesc.AddressU = D3D11_TEXTURE_ADDRESS_WRAP;
+	sampDesc.AddressV = D3D11_TEXTURE_ADDRESS_WRAP;
+	sampDesc.AddressW = D3D11_TEXTURE_ADDRESS_WRAP;
+	sampDesc.ComparisonFunc = D3D11_COMPARISON_NEVER;
+	sampDesc.MinLOD = 0;
+	sampDesc.MaxLOD = D3D11_FLOAT32_MAX;
+	hr = myDevice->CreateSamplerState(&sampDesc, &samplerLinear);
 
 	return TRUE;
 }
@@ -408,7 +411,7 @@ void Render()
 	temp = XMMatrixTranslation(3.0f, 2.0f, -5.0f);
 	XMStoreFloat4x4(&myMatricies.worldMatrix, temp);
 	//view
-	temp = XMMatrixLookAtLH({ 1.0f, 5.0f, -10.0f }, { 0.0f, 0.0f, 0.0f }, { 0.0f, 1.0f, 0.0f });
+	temp = XMMatrixLookAtLH({ 1.0f, 5.0f, -10.0f }, { 0.0f, 0.0f, 1.0f }, { 0.0f, 1.0f, 0.0f });
 	XMStoreFloat4x4(&myMatricies.viewMatrix, temp);
 	//projection
 	temp = XMMatrixPerspectiveFovLH(3.14f / 2.0f, aspectRatio, 0.1f, 1000.0f);
@@ -420,7 +423,6 @@ void Render()
 	myDeviceContext->OMSetRenderTargets(1, tempRenderTargetView, zBufferView);
 	//Rasterizer
 	myDeviceContext->RSSetViewports(1, &myViewPort);
-
 	//Upload those matricies to the video card
 	UploadMatriciesToVideoCard();
 
@@ -435,8 +437,10 @@ void Render()
 	ID3D11Buffer* tempMeshVertexBuffer[] = { vertexBufferMesh };
 	myDeviceContext->IASetVertexBuffers(0, 1, tempMeshVertexBuffer, meshStrides, meshOffsets);
 	myDeviceContext->IASetIndexBuffer(indiciesBufferMesh, DXGI_FORMAT_R32_UINT, 0);
-	//myDeviceContext->PSSetSamplers(0, 1, &samplerLinear);
-	//myDeviceContext->PSSetShaderResources(0, 1, &textureRV);
+	// stone henge texture upload
+	myDeviceContext->PSSetSamplers(0, 1, &samplerLinear);
+	myDeviceContext->PSSetShaderResources(0, 1, &textureRV);
+	// set shaders
 	myDeviceContext->VSSetShader(vertexMeshShader, nullptr, 0);
 	myDeviceContext->PSSetShader(pixelMeshShader, nullptr, 0);
 	myDeviceContext->IASetInputLayout(vertexMeshLayout);
@@ -458,8 +462,8 @@ void Render()
 void ReleaseInterfaces()
 {
 	delete[] stoneHenge;
-	//samplerLinear->Release();
-	//textureRV->Release();
+	samplerLinear->Release();
+	textureRV->Release();
 	zBuffer->Release();
 	zBufferView->Release();
 	vertexMeshLayout->Release();
@@ -488,3 +492,27 @@ void UploadMatriciesToVideoCard()
 	ID3D11Buffer* constants[] = { constantBuffer };
 	myDeviceContext->VSSetConstantBuffers(0, 1, constants);
 }
+
+////Test Pyramid
+//for (size_t i = 0; i < ARRAYSIZE(test_pyramid_data); i++)
+//{
+//	//Set POSITION
+//	pyramid[i].position.x = test_pyramid_data[i].pos[0];
+//	pyramid[i].position.y = test_pyramid_data[i].pos[1];
+//	pyramid[i].position.z = test_pyramid_data[i].pos[2];
+//	pyramid[i].position.w = 1.0f;
+//	//Set UV
+//	pyramid[i].texture.x = test_pyramid_data[i].uvw[0];
+//	pyramid[i].texture.y = test_pyramid_data[i].uvw[1];
+//	//SET NORMAL
+//	pyramid[i].normal.x = test_pyramid_data[i].nrm[0];
+//	pyramid[i].normal.y = test_pyramid_data[i].nrm[1];
+//	pyramid[i].normal.z = test_pyramid_data[i].nrm[2];
+//}
+//
+//unsigned int pyramidIndices[ARRAYSIZE(test_pyramid_indicies)];
+//
+//for (size_t i = 0; i < ARRAYSIZE(test_pyramid_indicies); i++)
+//{
+//	pyramidIndices[i] = test_pyramid_indicies[i];
+//}
