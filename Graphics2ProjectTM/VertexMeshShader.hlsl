@@ -8,15 +8,16 @@
 
 struct InputVertex
 {
-	float3 xyz : POSITION;
-	float3 uvw : TEXCOORD;
+	float4 pos : POSITION;
+	float2 tex : TEXCOORD;
 	float3 nrm : NORMAL;
 };
 
 struct OutputVertex
 {
-	float4 xyzw : SV_POSITION;
-	float4 rgba : OCOLOR;
+	float4 pos : SV_POSITION;
+	float2 tex : TEXCOORD;
+	float3 nrm : NORMAL;
 };
 
 cbuffer SHADER_VARIABLES : register(b0)
@@ -29,15 +30,15 @@ cbuffer SHADER_VARIABLES : register(b0)
 OutputVertex main(InputVertex input)
 {
 	OutputVertex output = (OutputVertex)0;
-	output.xyzw = float4(input.xyz, 1);
-	output.rgba.rgb = input.nrm;
+	output.pos = input.pos;
+	output.tex = input.tex;
+	output.nrm = input.nrm;
 	// Do math here (shader intrinsics)
-	output.xyzw = mul(output.xyzw, worldMatrix);
-	output.xyzw = mul(output.xyzw, viewMatrix);
-	output.xyzw = mul(output.xyzw, projMatrix);
+	output.pos = mul(output.pos, worldMatrix);
+	output.pos = mul(output.pos, viewMatrix);
+	output.pos = mul(output.pos, projMatrix);
+    output.nrm = mul(float4(output.nrm, 0), worldMatrix);
 	//Don't do perspective divide, it is done automatically
 
 	return output;
 }
-
-//VIDEO 3 46:17
