@@ -29,6 +29,9 @@ ID3D11DeviceContext* myDeviceContext;
 ID3D11RenderTargetView* myRenderTargetView;
 D3D11_VIEWPORT myViewPort;
 float aspectRatio = 1;
+//Dynamic User Variables
+float nearPlane = 0.1f;
+float farPlane = 50.0f;
 
 struct MyVertex
 {
@@ -107,6 +110,7 @@ INT_PTR CALLBACK    About(HWND, UINT, WPARAM, LPARAM);
 void UploadToVideoCard();
 void Render();
 void ReleaseInterfaces();
+void CheckUserInput();
 
 int APIENTRY wWinMain(_In_ HINSTANCE hInstance,
 	_In_opt_ HINSTANCE hPrevInstance,
@@ -442,6 +446,9 @@ void Render()
 	myDeviceContext->ClearRenderTargetView(myRenderTargetView, color);
 	myDeviceContext->ClearDepthStencilView(zBufferView, D3D11_CLEAR_DEPTH, 1, 0);
 
+	//Check for user input
+	CheckUserInput();
+
 	//world
 	XMMATRIX temp = XMMatrixIdentity();
 	temp = XMMatrixTranslation(3.0f, 2.0f, -5.0f);
@@ -450,7 +457,7 @@ void Render()
 	temp = XMMatrixLookAtLH({ 1.0f, 5.0f, -20.0f }, { 0.0f, 0.0f, 1.0f }, { 0.0f, 1.0f, 0.0f });
 	XMStoreFloat4x4(&myMatrices.viewMatrix, temp);
 	//projection
-	temp = XMMatrixPerspectiveFovLH(3.14f / 2.0f, aspectRatio, 0.1f, 1000.0f);
+	temp = XMMatrixPerspectiveFovLH(3.14f / 2.0f, aspectRatio, nearPlane, farPlane);
 	XMStoreFloat4x4(&myMatrices.projMatrix, temp);
 	//time
 	waveTime = { (waveTime.x + 0.005f), 0.0f, 0.0f, 0.0f };
@@ -555,4 +562,51 @@ void UploadToVideoCard()
 	ID3D11Buffer* constants[] = { constantBuffer, lightConstantBuffer };
 	myDeviceContext->VSSetConstantBuffers(0, ARRAYSIZE(constants), constants);
 	myDeviceContext->PSSetConstantBuffers(0, ARRAYSIZE(constants), constants);
+}
+
+void CheckUserInput()
+{
+	//Adjust the Near or Far Plane
+	if (true)
+	{
+		//Increase Far Plane
+		if (GetAsyncKeyState('O') & 0x1)
+		{
+			if (farPlane < 1000.0f) 
+			{
+				farPlane += 1.0f;
+			}
+		}
+		//Decrease Far Plane
+		if (GetAsyncKeyState('L') & 0x1)
+		{
+			if (farPlane > nearPlane + 0.1f)
+			{
+				farPlane -= 1.0f;
+			}
+		}
+
+		//Increase Near Plane
+		if (GetAsyncKeyState('I') & 0x1)
+		{
+			if (nearPlane < farPlane - 0.5f )
+			{
+				nearPlane += 1.0f;
+			}
+		}
+		//Decrease Near Plane
+		if (GetAsyncKeyState('K') & 0x1)
+		{
+			if (nearPlane > 0.5f)
+			{
+				nearPlane -= 1.0f;
+			}
+		}
+	}
+
+	//Adjust the 
+	if (true)
+	{
+
+	}
 }
