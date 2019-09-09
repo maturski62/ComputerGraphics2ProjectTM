@@ -18,6 +18,7 @@ struct OutputVertex
 	float4 pos : SV_POSITION;
 	float2 tex : TEXCOORD;
 	float3 nrm : NORMAL;
+    float4 worldPos : WORLDPOS;
 };
 
 cbuffer CONSTANT_BUFFER : register(b0)
@@ -25,13 +26,14 @@ cbuffer CONSTANT_BUFFER : register(b0)
     float4x4 worldMatrix;
     float4x4 viewMatrix;
     float4x4 projMatrix;
-    float4 time;
-    float4 speed;
+    float4 waveTime;
+    float4 waveSpeed;
 }
 
 OutputVertex main(InputVertex input)
 {
 	OutputVertex output = (OutputVertex)0;
+    output.worldPos = input.pos;
 	output.pos = input.pos;
     output.tex = input.tex;
 	output.nrm = input.nrm;
@@ -45,7 +47,7 @@ OutputVertex main(InputVertex input)
 
     float2 planePos = float2(output.pos.x, output.pos.z);
     float dotProduct = dot(float2(1, 1), planePos);
-    output.pos.y += amplitude * sin((dotProduct * frequency) + time.x);
+    output.pos.y += amplitude * sin((dotProduct * frequency) + waveTime.x);
 
 	// Do math here (shader intrinsics)
     output.pos = mul(output.pos, worldMatrix);

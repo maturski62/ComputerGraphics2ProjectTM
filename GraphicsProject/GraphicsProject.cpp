@@ -41,12 +41,17 @@ struct MyVertex
 MyVertex* stoneHenge = new MyVertex[ARRAYSIZE(StoneHenge_data)];
 
 //Wave Variables
-XMFLOAT4 time;
-XMVECTOR speed;
+XMFLOAT4 waveTime;
+XMVECTOR waveSpeed;
 
 //Light
 XMVECTOR lightDir;
 XMVECTOR lightColor;
+XMVECTOR pointLightPos;
+XMVECTOR pointLightColor;
+XMVECTOR lightRange;
+XMVECTOR attenuation;
+XMVECTOR ambient;
 
 //Shader Variables
 ID3D11Buffer* constantBuffer;
@@ -71,14 +76,19 @@ struct WVPMatrix
 	XMFLOAT4X4 worldMatrix;
 	XMFLOAT4X4 viewMatrix;
 	XMFLOAT4X4 projMatrix;
-	XMFLOAT4 time;
-	XMFLOAT4 speed;
+	XMFLOAT4 waveTime;
+	XMFLOAT4 waveSpeed;
 }myMatrices;
 
 struct Lights
 {
 	XMFLOAT4 vLightDir;
 	XMFLOAT4 vLightColor;
+	XMFLOAT4 vPointLightPos;
+	XMFLOAT4 vPointLightColor;
+	XMFLOAT4 vLightRange;
+	XMFLOAT4 vAttenuation;
+	XMFLOAT4 vAmbient;
 }myLights;
 
 #define MAX_LOADSTRING 100
@@ -94,7 +104,7 @@ ATOM                MyRegisterClass(HINSTANCE hInstance);
 BOOL                InitInstance(HINSTANCE, int);
 LRESULT CALLBACK    WndProc(HWND, UINT, WPARAM, LPARAM);
 INT_PTR CALLBACK    About(HWND, UINT, WPARAM, LPARAM);
-void UploadMatriciesToVideoCard();
+void UploadToVideoCard();
 void Render();
 void ReleaseInterfaces();
 
@@ -293,7 +303,7 @@ BOOL InitInstance(HINSTANCE hInstance, int nCmdShow)
 	}
 
 	//Time for the wave
-	time = { 0.0f, 0.0f, 0.0f, 0.0f };
+	waveTime = { 0.0f, 0.0f, 0.0f, 0.0f };
 
 	//Load mesh 
 	bDesc.BindFlags = D3D11_BIND_VERTEX_BUFFER;
@@ -341,12 +351,6 @@ BOOL InitInstance(HINSTANCE hInstance, int nCmdShow)
 	if (zBuffer)
 	{
 		hr = myDevice->CreateDepthStencilView(zBuffer, nullptr, &zBufferView);
-	}
-
-	// Load the Texture
-	if (myDevice)
-	{
-		//hr = CreateDDSTextureFromFile(myDevice, L"Assets/stoneHenge.dds", nullptr, &textureRV);
 	}
 
 	// Create the sample state
@@ -443,18 +447,18 @@ void Render()
 	temp = XMMatrixTranslation(3.0f, 2.0f, -5.0f);
 	XMStoreFloat4x4(&myMatrices.worldMatrix, temp);
 	//view
-	temp = XMMatrixLookAtLH({ 1.0f, 5.0f, -10.0f }, { 0.0f, 0.0f, 1.0f }, { 0.0f, 1.0f, 0.0f });
+	temp = XMMatrixLookAtLH({ 1.0f, 5.0f, -20.0f }, { 0.0f, 0.0f, 1.0f }, { 0.0f, 1.0f, 0.0f });
 	XMStoreFloat4x4(&myMatrices.viewMatrix, temp);
 	//projection
 	temp = XMMatrixPerspectiveFovLH(3.14f / 2.0f, aspectRatio, 0.1f, 1000.0f);
 	XMStoreFloat4x4(&myMatrices.projMatrix, temp);
 	//time
-	time = { (time.x + 0.005f), 0.0f, 0.0f, 0.0f };
-	XMVECTOR tempTime = { time.x, time.y, time.z, time.w };
-	XMStoreFloat4(&myMatrices.time, tempTime);
+	waveTime = { (waveTime.x + 0.005f), 0.0f, 0.0f, 0.0f };
+	XMVECTOR tempTime = { waveTime.x, waveTime.y, waveTime.z, waveTime.w };
+	XMStoreFloat4(&myMatrices.waveTime, tempTime);
 	//speed
-	speed = { 5.0f, 0.0f, 0.0f, 0.0f };
-	XMStoreFloat4(&myMatrices.speed, speed);
+	waveSpeed = { 5.0f, 0.0f, 0.0f, 0.0f };
+	XMStoreFloat4(&myMatrices.waveSpeed, waveSpeed);
 
 	//Setup the pipeline
 	//Output merger
@@ -463,7 +467,7 @@ void Render()
 	//Rasterizer
 	myDeviceContext->RSSetViewports(1, &myViewPort);
 	//Upload those matricies to the video card
-	UploadMatriciesToVideoCard();
+	UploadToVideoCard();
 
 	//Immediate context 
 	//Get a more complex pre-made mesh (FBX, OBJ, custom header) #done
@@ -483,19 +487,31 @@ void Render()
 	myDeviceContext->VSSetShader(vertexMeshShader, nullptr, 0);
 	myDeviceContext->PSSetShader(pixelMeshShader, nullptr, 0);
 	myDeviceContext->IASetInputLayout(vertexMeshLayout);
+	myDeviceContext->IASetPrimitiveTopology(D3D11_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
 
 	//Modify world matrix before drawing next mesh
 	XMMATRIX stoneHedge = XMMatrixIdentity();
 	XMStoreFloat4x4(&myMatrices.worldMatrix, stoneHedge);
 	//Set lighting variables
+	//Directional Light
 	lightDir = { -0.577f, 0.577f, -0.577f, 1.0f };
 	XMStoreFloat4(&myLights.vLightDir, lightDir);
-	lightColor = { 0.5f, 0.5f, 0.5f, 1.0f };
+	lightColor = { 0.3f, 0.3f, 0.5f, 1.0f };
 	XMStoreFloat4(&myLights.vLightColor, lightColor);
+	//Point Light
+	pointLightPos = { 0.0f, 5.0f, 0.0f, 1.0f };
+	XMStoreFloat4(&myLights.vPointLightPos, pointLightPos);
+	pointLightColor = { 1.0f, 0.0f, 0.0f, 0.0f };
+	XMStoreFloat4(&myLights.vPointLightColor, pointLightColor);
+	lightRange = { 7.0f, 0.0f, 0.0f, 0.0f };
+	XMStoreFloat4(&myLights.vLightRange, lightRange);
+	attenuation = { 0.0f, 0.2f, 0.0f, 0.0f };
+	XMStoreFloat4(&myLights.vAttenuation, attenuation);
+	ambient = { 0.0f, 0.0f, 0.0f, 1.0f };
+	XMStoreFloat4(&myLights.vAmbient, ambient);
 	//Upload those matricies to the video card
-	UploadMatriciesToVideoCard();
+	UploadToVideoCard();
 
-	myDeviceContext->IASetPrimitiveTopology(D3D11_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
 
 	//draw
 	myDeviceContext->DrawIndexed(ARRAYSIZE(StoneHenge_indicies), 0, 0);
@@ -522,7 +538,7 @@ void ReleaseInterfaces()
 	myDevice->Release();
 }
 
-void UploadMatriciesToVideoCard()
+void UploadToVideoCard()
 {
 	//Create and update a constant buffer (more variables from c++ to shaders) 
 	D3D11_MAPPED_SUBRESOURCE gpuBuffer;
