@@ -40,6 +40,10 @@ struct MyVertex
 //Models
 MyVertex* stoneHenge = new MyVertex[ARRAYSIZE(StoneHenge_data)];
 
+//Wave Variables
+XMFLOAT4 time;
+XMVECTOR speed;
+
 //Light
 XMVECTOR lightDir;
 XMVECTOR lightColor;
@@ -67,8 +71,8 @@ struct WVPMatrix
 	XMFLOAT4X4 worldMatrix;
 	XMFLOAT4X4 viewMatrix;
 	XMFLOAT4X4 projMatrix;
-	XMFLOAT4 vLightDir;
-	XMFLOAT4 vLightColor;
+	XMFLOAT4 time;
+	XMFLOAT4 speed;
 }myMatrices;
 
 struct Lights
@@ -288,6 +292,9 @@ BOOL InitInstance(HINSTANCE hInstance, int nCmdShow)
 		stoneHengeIndices[i] = StoneHenge_indicies[i];
 	}
 
+	//Time for the wave
+	time = { 0.0f, 0.0f, 0.0f, 0.0f };
+
 	//Load mesh 
 	bDesc.BindFlags = D3D11_BIND_VERTEX_BUFFER;
 	bDesc.ByteWidth = sizeof(MyVertex) * ARRAYSIZE(StoneHenge_data);
@@ -441,6 +448,13 @@ void Render()
 	//projection
 	temp = XMMatrixPerspectiveFovLH(3.14f / 2.0f, aspectRatio, 0.1f, 1000.0f);
 	XMStoreFloat4x4(&myMatrices.projMatrix, temp);
+	//time
+	time = { (time.x + 0.005f), 0.0f, 0.0f, 0.0f };
+	XMVECTOR tempTime = { time.x, time.y, time.z, time.w };
+	XMStoreFloat4(&myMatrices.time, tempTime);
+	//speed
+	speed = { 5.0f, 0.0f, 0.0f, 0.0f };
+	XMStoreFloat4(&myMatrices.speed, speed);
 
 	//Setup the pipeline
 	//Output merger
