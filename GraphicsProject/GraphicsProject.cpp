@@ -39,10 +39,14 @@ struct MyVertex
 
 //Models
 MyVertex* stoneHenge = new MyVertex[ARRAYSIZE(StoneHenge_data)];
-MyVertex* pyramid = new MyVertex[ARRAYSIZE(test_pyramid_data)];
+
+//Light
+XMVECTOR lightDir;
+XMVECTOR lightColor;
 
 //Shader Variables
 ID3D11Buffer* constantBuffer;
+ID3D11Buffer* lightConstantBuffer;
 ID3D11SamplerState* samplerLinear;
 ID3D11ShaderResourceView* textureRV;
 
@@ -57,13 +61,21 @@ ID3D11PixelShader* pixelMeshShader;
 ID3D11Texture2D* zBuffer;
 ID3D11DepthStencilView* zBufferView;
 
-//Math stuff
+//Constant Buffer
 struct WVPMatrix
 {
 	XMFLOAT4X4 worldMatrix;
 	XMFLOAT4X4 viewMatrix;
 	XMFLOAT4X4 projMatrix;
-}myMatricies;
+	XMFLOAT4 vLightDir;
+	XMFLOAT4 vLightColor;
+}myMatrices;
+
+struct Lights
+{
+	XMFLOAT4 vLightDir;
+	XMFLOAT4 vLightColor;
+}myLights;
 
 #define MAX_LOADSTRING 100
 
@@ -236,8 +248,16 @@ BOOL InitInstance(HINSTANCE hInstance, int nCmdShow)
 	bDesc.MiscFlags = 0;
 	bDesc.StructureByteStride = 0;
 	bDesc.Usage = D3D11_USAGE_DYNAMIC;
-
 	hr = myDevice->CreateBuffer(&bDesc, nullptr, &constantBuffer);
+
+	//Create constant buffer
+	bDesc.BindFlags = D3D11_BIND_CONSTANT_BUFFER;
+	bDesc.ByteWidth = sizeof(Lights);
+	bDesc.CPUAccessFlags = D3D11_CPU_ACCESS_WRITE;
+	bDesc.MiscFlags = 0;
+	bDesc.StructureByteStride = 0;
+	bDesc.Usage = D3D11_USAGE_DYNAMIC;
+	hr = myDevice->CreateBuffer(&bDesc, nullptr, &lightConstantBuffer);
 
 	for (size_t i = 0; i < ARRAYSIZE(StoneHenge_data); i++)
 	{
@@ -414,13 +434,13 @@ void Render()
 	//world
 	XMMATRIX temp = XMMatrixIdentity();
 	temp = XMMatrixTranslation(3.0f, 2.0f, -5.0f);
-	XMStoreFloat4x4(&myMatricies.worldMatrix, temp);
+	XMStoreFloat4x4(&myMatrices.worldMatrix, temp);
 	//view
 	temp = XMMatrixLookAtLH({ 1.0f, 5.0f, -10.0f }, { 0.0f, 0.0f, 1.0f }, { 0.0f, 1.0f, 0.0f });
-	XMStoreFloat4x4(&myMatricies.viewMatrix, temp);
+	XMStoreFloat4x4(&myMatrices.viewMatrix, temp);
 	//projection
 	temp = XMMatrixPerspectiveFovLH(3.14f / 2.0f, aspectRatio, 0.1f, 1000.0f);
-	XMStoreFloat4x4(&myMatricies.projMatrix, temp);
+	XMStoreFloat4x4(&myMatrices.projMatrix, temp);
 
 	//Setup the pipeline
 	//Output merger
@@ -452,7 +472,12 @@ void Render()
 
 	//Modify world matrix before drawing next mesh
 	XMMATRIX stoneHedge = XMMatrixIdentity();
-	XMStoreFloat4x4(&myMatricies.worldMatrix, stoneHedge);
+	XMStoreFloat4x4(&myMatrices.worldMatrix, stoneHedge);
+	//Set lighting variables
+	lightDir = { -0.577f, 0.577f, -0.577f, 1.0f };
+	XMStoreFloat4(&myLights.vLightDir, lightDir);
+	lightColor = { 0.5f, 0.5f, 0.5f, 1.0f };
+	XMStoreFloat4(&myLights.vLightColor, lightColor);
 	//Upload those matricies to the video card
 	UploadMatriciesToVideoCard();
 
@@ -488,36 +513,16 @@ void UploadMatriciesToVideoCard()
 	//Create and update a constant buffer (more variables from c++ to shaders) 
 	D3D11_MAPPED_SUBRESOURCE gpuBuffer;
 	HRESULT hr = myDeviceContext->Map(constantBuffer, 0, D3D11_MAP_WRITE_DISCARD, 0, &gpuBuffer);
-	*((WVPMatrix*)(gpuBuffer.pData)) = myMatricies;
-	//memcpy(gpuBuffer.pData, &myMatricies, sizeof(WVPMatrix));
+	*((WVPMatrix*)(gpuBuffer.pData)) = myMatrices;
 	myDeviceContext->Unmap(constantBuffer, 0);
+
+	hr = myDeviceContext->Map(lightConstantBuffer, 0, D3D11_MAP_WRITE_DISCARD, 0, &gpuBuffer);
+	*((Lights*)(gpuBuffer.pData)) = myLights;
+	myDeviceContext->Unmap(lightConstantBuffer, 0);
 	//Apply matrix math in Vertex Shader #done
 	//Connect constant buffer to the pipeline #done
 	//By default HLSL matricies are column major
-	ID3D11Buffer* constants[] = { constantBuffer };
-	myDeviceContext->VSSetConstantBuffers(0, 1, constants);
+	ID3D11Buffer* constants[] = { constantBuffer, lightConstantBuffer };
+	myDeviceContext->VSSetConstantBuffers(0, ARRAYSIZE(constants), constants);
+	myDeviceContext->PSSetConstantBuffers(0, ARRAYSIZE(constants), constants);
 }
-
-////Test Pyramid
-//for (size_t i = 0; i < ARRAYSIZE(test_pyramid_data); i++)
-//{
-//	//Set POSITION
-//	pyramid[i].position.x = test_pyramid_data[i].pos[0];
-//	pyramid[i].position.y = test_pyramid_data[i].pos[1];
-//	pyramid[i].position.z = test_pyramid_data[i].pos[2];
-//	pyramid[i].position.w = 1.0f;
-//	//Set UV
-//	pyramid[i].texture.x = test_pyramid_data[i].uvw[0];
-//	pyramid[i].texture.y = test_pyramid_data[i].uvw[1];
-//	//SET NORMAL
-//	pyramid[i].normal.x = test_pyramid_data[i].nrm[0];
-//	pyramid[i].normal.y = test_pyramid_data[i].nrm[1];
-//	pyramid[i].normal.z = test_pyramid_data[i].nrm[2];
-//}
-//
-//unsigned int pyramidIndices[ARRAYSIZE(test_pyramid_indicies)];
-//
-//for (size_t i = 0; i < ARRAYSIZE(test_pyramid_indicies); i++)
-//{
-//	pyramidIndices[i] = test_pyramid_indicies[i];
-//}

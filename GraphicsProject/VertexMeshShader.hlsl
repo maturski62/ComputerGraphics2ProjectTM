@@ -20,12 +20,12 @@ struct OutputVertex
 	float3 nrm : NORMAL;
 };
 
-cbuffer SHADER_VARIABLES : register(b0)
+cbuffer CONSTANT_BUFFER : register(b0)
 {
-	float4x4 worldMatrix;
-	float4x4 viewMatrix;
-	float4x4 projMatrix;
-};
+    float4x4 worldMatrix;
+    float4x4 viewMatrix;
+    float4x4 projMatrix;
+}
 
 OutputVertex main(InputVertex input)
 {
