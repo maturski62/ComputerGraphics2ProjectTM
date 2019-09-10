@@ -31,7 +31,7 @@ D3D11_VIEWPORT myViewPort;
 float aspectRatio = 1;
 //Dynamic User Variables
 float nearPlane = 0.1f;
-float farPlane = 50.0f;
+float farPlane = 100.0f;
 
 struct MyVertex
 {
@@ -41,9 +41,16 @@ struct MyVertex
 };
 
 //Camera
+XMVECTOR camera;
 float cameraX = 0.0f;
 float cameraY = 5.0f;
 float cameraZ = -20.0f;
+float cameraRotX = 0.0f;
+float cameraRotY = 0.0f;
+POINT cursorPoint;
+POINT prevCursorPoint;
+float screenWidth;
+float screenHeight;
 
 //Models
 MyVertex* stoneHenge = new MyVertex[ARRAYSIZE(StoneHenge_data)];
@@ -242,6 +249,8 @@ BOOL InitInstance(HINSTANCE hInstance, int nCmdShow)
 	swap.SwapEffect = DXGI_SWAP_EFFECT_DISCARD;
 	swap.Windowed = true;
 
+	screenWidth = swap.BufferDesc.Width;
+	screenHeight = swap.BufferDesc.Height;
 	aspectRatio = static_cast<float>(swap.BufferDesc.Width) / static_cast<float>(swap.BufferDesc.Height);
 
 	HRESULT hr;
@@ -376,6 +385,9 @@ BOOL InitInstance(HINSTANCE hInstance, int nCmdShow)
 	sampDesc.MaxLOD = D3D11_FLOAT32_MAX;
 	hr = myDevice->CreateSamplerState(&sampDesc, &samplerLinear);
 
+	//Set Camera Variables
+	camera = { cameraX, cameraY, cameraZ, 1.0f };
+
 	return TRUE;
 }
 
@@ -450,7 +462,7 @@ INT_PTR CALLBACK About(HWND hDlg, UINT message, WPARAM wParam, LPARAM lParam)
 void Render()
 {
 	//Clear screen to one color
-	float color[] = CYAN;
+	float color[] = BLACK;
 	myDeviceContext->ClearRenderTargetView(myRenderTargetView, color);
 	myDeviceContext->ClearDepthStencilView(zBufferView, D3D11_CLEAR_DEPTH, 1, 0);
 
@@ -462,13 +474,13 @@ void Render()
 	temp = XMMatrixTranslation(0.0f, 0.0f, 0.0f);
 	XMStoreFloat4x4(&myMatrices.worldMatrix, temp);
 	//view
-	temp = XMMatrixLookAtLH({ cameraX, cameraY, cameraZ }, { cameraX  , cameraY , cameraZ + 10.0f  }, { 0.0f, 1.0f, 0.0f });
+	temp = XMMatrixLookAtLH(camera, { cameraX, cameraY, cameraZ + 10.0f  }, { 0.0f, 1.0f, 0.0f });
 	XMStoreFloat4x4(&myMatrices.viewMatrix, temp);
 	//projection
 	temp = XMMatrixPerspectiveFovLH(3.14f / 2.0f, aspectRatio, nearPlane, farPlane);
 	XMStoreFloat4x4(&myMatrices.projMatrix, temp);
 	//time
-	waveTime = { (waveTime.x + 0.005f), 0.0f, 0.0f, 0.0f };
+	waveTime = { (waveTime.x + 0.05f), 0.0f, 0.0f, 0.0f };
 	XMVECTOR tempTime = { waveTime.x, waveTime.y, waveTime.z, waveTime.w };
 	XMStoreFloat4(&myMatrices.waveTime, tempTime);
 	//speed
@@ -509,15 +521,16 @@ void Render()
 	XMStoreFloat4x4(&myMatrices.worldMatrix, stoneHedge);
 	//Set lighting variables
 	//Directional Light
+	static float lightAngle = -0.577f; lightAngle += 0.01;
 	lightDir = { -0.577f, 0.577f, -0.577f, 1.0f };
 	XMStoreFloat4(&myLights.vLightDir, lightDir);
-	lightColor = { 0.35f, 0.35f, 0.5f, 1.0f };
+	lightColor = { 0.5f, 0.5f, 0.5f, 1.0f };
 	XMStoreFloat4(&myLights.vLightColor, lightColor);
 	//Point Light
 	pointLightPos = { 5.0f, 5.0f, -2.0f, 1.0f };
-	static float pointLightAngle = 0.0f; pointLightAngle += 0.001f;
-	XMMATRIX lightRotation = XMMatrixRotationY(pointLightAngle);
-	pointLightPos = XMVector4Transform(pointLightPos, lightRotation);
+	static float pointLightAngle = 0.0f; pointLightAngle += 0.05f;
+	XMMATRIX pointLightRotation = XMMatrixRotationY(pointLightAngle);
+	pointLightPos = XMVector4Transform(pointLightPos, pointLightRotation);
 	XMStoreFloat4(&myLights.vPointLightPos, pointLightPos);
 	pointLightColor = { 1.0f, 0.0f, 0.0f, 0.0f };
 	XMStoreFloat4(&myLights.vPointLightColor, pointLightColor);
@@ -673,26 +686,51 @@ void CheckUserInput()
 	//Adjust the Camera
 	if (GetAsyncKeyState('W'))
 	{
-		cameraZ += 0.5f;
+		camera = { cameraX, cameraY, cameraZ += 0.5f };
 	}
 	else if(GetAsyncKeyState('S'))
 	{
-		cameraZ -= 0.5f;
+		camera = { cameraX, cameraY, cameraZ -= 0.5f };
 	}
 	if (GetAsyncKeyState('A'))
 	{
-		cameraX -= 0.5f;
+		camera = { cameraX -= 0.5f, cameraY, cameraZ };
 	}
 	else if(GetAsyncKeyState('D'))
 	{
-		cameraX += 0.5f;
+		camera = { cameraX += 0.5f, cameraY, cameraZ };
 	}
 	if (GetAsyncKeyState(VK_UP))
 	{
-		cameraY += 0.5f;
+		camera = { cameraX, cameraY += 0.5f, cameraZ };
 	}
 	else if (GetAsyncKeyState(VK_DOWN))
 	{
-		cameraY -= 0.5f;
+		camera = { cameraX, cameraY -= 0.5f, cameraZ };
 	}
+
+	//GetCursorPos(&cursorPoint);
+	//
+	//if (prevCursorPoint.x != cursorPoint.x && prevCursorPoint.y != cursorPoint.y)
+	//{
+	//	if (cursorPoint.x < prevCursorPoint.x)
+	//	{
+	//		cameraRotX -= 0.5;
+	//	}
+	//	else if (cursorPoint.x > prevCursorPoint.x)
+	//	{
+	//		cameraRotX += 0.5;
+	//	}
+	//
+	//	if (cursorPoint.y < prevCursorPoint.y)
+	//	{
+	//		cameraRotY += 0.5;
+	//	}
+	//	else if (cursorPoint.y > prevCursorPoint.y)
+	//	{
+	//		cameraRotY -= 0.5;
+	//	}
+	//}
+	//
+	//prevCursorPoint = cursorPoint;
 }
