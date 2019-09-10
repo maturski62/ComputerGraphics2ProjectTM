@@ -33,14 +33,9 @@ cbuffer CONSTANT_BUFFER : register(b0)
 OutputVertex main(InputVertex input)
 {
 	OutputVertex output = (OutputVertex)0;
-    output.worldPos = input.pos;
 	output.pos = input.pos;
     output.tex = input.tex;
 	output.nrm = input.nrm;
-
-    //float4 waves = input.pos;
-    //waves.y = sin(waves.x);
-    //output.pos = waves;
 
     float amplitude = 1.0f; //Wave height
     float frequency = 0.1f; //Distance between wave peaks
@@ -50,6 +45,7 @@ OutputVertex main(InputVertex input)
 
 	// Do math here (shader intrinsics)
     output.pos = mul(output.pos, worldMatrix);
+    output.worldPos = output.pos;
 	output.pos = mul(output.pos, viewMatrix);
 	output.pos = mul(output.pos, projMatrix);
     output.nrm = mul(float4(output.nrm, 0), worldMatrix);

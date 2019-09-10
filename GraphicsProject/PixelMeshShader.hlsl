@@ -16,49 +16,30 @@ cbuffer PSConstantBuffer : register(b1)
     float4 vLightColor;
     float4 vPointLightPos;
     float4 vPointLightColor;
-    float4 vLightRange;
-    float4 vAttenuation;
     float4 vAmbient;
 }
 
 float4 main(OutputVertex inputPixel) : SV_TARGET
 {
     float4 finalColor = 0;
-    float4 finalDirectionLightColor = 0;
-    float4 finalPointLightColor = 0;
+    float4 directionLightColor = 0;
     float4 pointLightColor = 0;
     float attenuation = 0;
-    
-    float4 pointLightDir = vPointLightPos - inputPixel.worldPos;
-    float distance = length(pointLightDir);
-    pointLightDir = normalize(pointLightDir);
+
+    float4 pointLightDir = normalize(vPointLightPos - inputPixel.worldPos);
     float amountOfLight = dot(pointLightDir, float4(inputPixel.nrm, 0));
-    //attenuation = 1.0f - saturate(length(vPointLightPos - inputPixel.pos) / vLightRange.x);
-    //attenuation *= attenuation;
-    
-    if(distance < vLightRange.x)
-    {
-        //Point Light if pixel is in the range
-        pointLightColor = (amountOfLight * vPointLightColor);
-        finalColor = pointLightColor * stoneHengeDiffuse.Sample(samLinear, inputPixel.tex);
-    }
+    attenuation = 1.0f - saturate(length(vPointLightPos - inputPixel.worldPos) / 10.0f);
+    attenuation *= attenuation;
 
-    //float4 pointLightDir = normalize(vPointLightPos - inputPixel.worldPos);
-    //float lightRatio = saturate(dot(pointLightDir, float4(inputPixel.nrm, 0)));
-    //attenuation = 1.0f - saturate(length(vPointLightPos - inputPixel.pos) / 10.0f);
-    //attenuation *= attenuation;
-    //finalPointLightColor = (lightRatio * vPointLightColor * stoneHengeDiffuse.Sample(samLinear, inputPixel.tex));// * attenuation;
-    //
-    ////Directional Light no matter the circumstances
-    //finalDirectionLightColor = saturate(dot(vLightDir, float4(inputPixel.nrm, 0)) * vLightColor);
-    //finalDirectionLightColor *= stoneHengeDiffuse.Sample(samLinear, inputPixel.tex);
-    //finalDirectionLightColor.a = 1.0f;
-    //finalColor = (finalDirectionLightColor + finalPointLightColor);
+    //Point Light if pixel is in the range
+    pointLightColor = (amountOfLight * vPointLightColor);
+    pointLightColor = pointLightColor * stoneHengeDiffuse.Sample(samLinear, inputPixel.tex) * attenuation;
 
-    finalColor += saturate(dot(vLightDir, float4(inputPixel.nrm, 0)) * vLightColor);
-    finalColor *= stoneHengeDiffuse.Sample(samLinear, inputPixel.tex);
-    finalColor.a = 1.0f;
+    directionLightColor += saturate(dot(vLightDir, float4(inputPixel.nrm, 0)) * vLightColor);
+    directionLightColor *= stoneHengeDiffuse.Sample(samLinear, inputPixel.tex);
+    directionLightColor.a = 1.0f;
 
+    finalColor = directionLightColor + pointLightColor;
 
     // only for p light
     // for every clamp function call, you may add ambient term ex:0.45 (optional)

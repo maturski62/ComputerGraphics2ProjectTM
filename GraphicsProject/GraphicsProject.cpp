@@ -55,8 +55,6 @@ XMVECTOR lightDir;
 XMVECTOR lightColor;
 XMVECTOR pointLightPos;
 XMVECTOR pointLightColor;
-XMVECTOR lightRange;
-XMVECTOR attenuation;
 XMVECTOR ambient;
 
 //Shader Variables
@@ -97,8 +95,6 @@ struct Lights
 	XMFLOAT4 vLightColor;
 	XMFLOAT4 vPointLightPos;
 	XMFLOAT4 vPointLightColor;
-	XMFLOAT4 vLightRange;
-	XMFLOAT4 vAttenuation;
 	XMFLOAT4 vAmbient;
 }myLights;
 
@@ -513,14 +509,10 @@ void Render()
 	lightColor = { 0.3f, 0.3f, 0.5f, 1.0f };
 	XMStoreFloat4(&myLights.vLightColor, lightColor);
 	//Point Light
-	pointLightPos = { 0.0f, 5.0f, 0.0f, 1.0f };
+	pointLightPos = { 0.0f, 5.0f, -5.0f, 1.0f };
 	XMStoreFloat4(&myLights.vPointLightPos, pointLightPos);
 	pointLightColor = { 1.0f, 0.0f, 0.0f, 0.0f };
 	XMStoreFloat4(&myLights.vPointLightColor, pointLightColor);
-	lightRange = { 7.0f, 0.0f, 0.0f, 0.0f };
-	XMStoreFloat4(&myLights.vLightRange, lightRange);
-	attenuation = { 0.0f, 0.2f, 0.0f, 0.0f };
-	XMStoreFloat4(&myLights.vAttenuation, attenuation);
 	ambient = { 0.0f, 0.0f, 0.0f, 1.0f };
 	XMStoreFloat4(&myLights.vAmbient, ambient);
 	//Upload those matricies to the video card
