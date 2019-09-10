@@ -18,7 +18,7 @@ using namespace DirectX;
 
 //Mesh Files
 #include "Assets/StoneHenge.h"
-#include "Assets/test pyramid.h"
+#include "Assets/barrels.h"
 
 //For Init
 ID3D11Device* myDevice;
@@ -42,6 +42,9 @@ struct MyVertex
 
 //Models
 MyVertex* stoneHenge = new MyVertex[ARRAYSIZE(StoneHenge_data)];
+unsigned int stoneHengeIndices[ARRAYSIZE(StoneHenge_indicies)];
+MyVertex* barrels = new MyVertex[ARRAYSIZE(barrels_data)];
+unsigned int barrelsIndices[ARRAYSIZE(barrels_indicies)];
 
 //Wave Variables
 XMFLOAT4 waveTime;
@@ -60,11 +63,16 @@ XMVECTOR ambient;
 ID3D11Buffer* constantBuffer;
 ID3D11Buffer* lightConstantBuffer;
 ID3D11SamplerState* samplerLinear;
-ID3D11ShaderResourceView* textureRV;
+ID3D11ShaderResourceView* stonehengeTex;
+ID3D11ShaderResourceView* barrelsTex;
 
 //Mesh data
-ID3D11Buffer* vertexBufferMesh;
-ID3D11Buffer* indiciesBufferMesh;
+//Stonehenge
+ID3D11Buffer* stonehengeVertexBuffer;
+ID3D11Buffer* stonehengeIndicesBuffer;
+//Barrels
+ID3D11Buffer* barrelsVertexBuffer;
+ID3D11Buffer* barrelsIndicesBuffer;
 ID3D11InputLayout* vertexMeshLayout;
 ID3D11VertexShader* vertexMeshShader;
 ID3D11PixelShader* pixelMeshShader;
@@ -111,6 +119,8 @@ void UploadToVideoCard();
 void Render();
 void ReleaseInterfaces();
 void CheckUserInput();
+void CreateStoneHenge();
+void CreateBarrels();
 
 int APIENTRY wWinMain(_In_ HINSTANCE hInstance,
 	_In_opt_ HINSTANCE hPrevInstance,
@@ -277,39 +287,21 @@ BOOL InitInstance(HINSTANCE hInstance, int nCmdShow)
 	bDesc.Usage = D3D11_USAGE_DYNAMIC;
 	hr = myDevice->CreateBuffer(&bDesc, nullptr, &lightConstantBuffer);
 
-	for (size_t i = 0; i < ARRAYSIZE(StoneHenge_data); i++)
-	{
-		//Set POSITION
-		stoneHenge[i].position.x = StoneHenge_data[i].pos[0];
-		stoneHenge[i].position.y = StoneHenge_data[i].pos[1];
-		stoneHenge[i].position.z = StoneHenge_data[i].pos[2];
-		stoneHenge[i].position.w = 1.0f;
-		//Set UV
-		stoneHenge[i].texture.x = StoneHenge_data[i].uvw[0];
-		stoneHenge[i].texture.y = StoneHenge_data[i].uvw[1];
-		//SET NORMAL
-		stoneHenge[i].normal.x = StoneHenge_data[i].nrm[0];
-		stoneHenge[i].normal.y = StoneHenge_data[i].nrm[1];
-		stoneHenge[i].normal.z = StoneHenge_data[i].nrm[2];
-	}
+	//Load Mesh Data
+	CreateStoneHenge();
+	CreateBarrels();
 
 	//Creating Texture
 	if (myDevice)
 	{
-		hr = CreateDDSTextureFromFile(myDevice, L"Assets/stoneHenge.dds", nullptr, &textureRV);
-	}
-
-	unsigned int stoneHengeIndices[ARRAYSIZE(StoneHenge_indicies)];
-
-	for (size_t i = 0; i < ARRAYSIZE(StoneHenge_indicies); i++)
-	{
-		stoneHengeIndices[i] = StoneHenge_indicies[i];
+		hr = CreateDDSTextureFromFile(myDevice, L"Assets/stoneHenge.dds", nullptr, &stonehengeTex);
+		hr = CreateDDSTextureFromFile(myDevice, L"Assets/barrelTexture.dds", nullptr, &barrelsTex);
 	}
 
 	//Time for the wave
 	waveTime = { 0.0f, 0.0f, 0.0f, 0.0f };
 
-	//Load mesh 
+	//Load Stonehenge
 	bDesc.BindFlags = D3D11_BIND_VERTEX_BUFFER;
 	bDesc.ByteWidth = sizeof(MyVertex) * ARRAYSIZE(StoneHenge_data);
 	bDesc.CPUAccessFlags = 0;
@@ -317,12 +309,27 @@ BOOL InitInstance(HINSTANCE hInstance, int nCmdShow)
 	bDesc.StructureByteStride = 0;
 	bDesc.Usage = D3D11_USAGE_IMMUTABLE;
 	subData.pSysMem = stoneHenge;
-	hr = myDevice->CreateBuffer(&bDesc, &subData, &vertexBufferMesh);
+	hr = myDevice->CreateBuffer(&bDesc, &subData, &stonehengeVertexBuffer);
 	//index buffer mesh
 	bDesc.BindFlags = D3D11_BIND_INDEX_BUFFER;
 	bDesc.ByteWidth = sizeof(unsigned int) * ARRAYSIZE(stoneHengeIndices);
 	subData.pSysMem = stoneHengeIndices;
-	hr = myDevice->CreateBuffer(&bDesc, &subData, &indiciesBufferMesh);
+	hr = myDevice->CreateBuffer(&bDesc, &subData, &stonehengeIndicesBuffer);
+
+	//Load Barrels
+	bDesc.BindFlags = D3D11_BIND_VERTEX_BUFFER;
+	bDesc.ByteWidth = sizeof(MyVertex) * ARRAYSIZE(barrels_data);
+	bDesc.CPUAccessFlags = 0;
+	bDesc.MiscFlags = 0;
+	bDesc.StructureByteStride = 0;
+	bDesc.Usage = D3D11_USAGE_IMMUTABLE;
+	subData.pSysMem = barrels;
+	hr = myDevice->CreateBuffer(&bDesc, &subData, &barrelsVertexBuffer);
+	//index buffer mesh
+	bDesc.BindFlags = D3D11_BIND_INDEX_BUFFER;
+	bDesc.ByteWidth = sizeof(unsigned int) * ARRAYSIZE(barrelsIndices);
+	subData.pSysMem = barrelsIndices;
+	hr = myDevice->CreateBuffer(&bDesc, &subData, &barrelsIndicesBuffer);
 
 	//Load new mesh shader
 	hr = myDevice->CreateVertexShader(VertexMeshShader, sizeof(VertexMeshShader), nullptr, &vertexMeshShader);
@@ -451,7 +458,7 @@ void Render()
 
 	//world
 	XMMATRIX temp = XMMatrixIdentity();
-	temp = XMMatrixTranslation(3.0f, 2.0f, -5.0f);
+	temp = XMMatrixTranslation(0.0f, 0.0f, 0.0f);
 	XMStoreFloat4x4(&myMatrices.worldMatrix, temp);
 	//view
 	temp = XMMatrixLookAtLH({ 1.0f, 5.0f, -20.0f }, { 0.0f, 0.0f, 1.0f }, { 0.0f, 1.0f, 0.0f });
@@ -484,12 +491,12 @@ void Render()
 	//setup pipeline
 	UINT meshStrides[] = { sizeof(MyVertex) };
 	UINT meshOffsets[] = { 0 };
-	ID3D11Buffer* tempMeshVertexBuffer[] = { vertexBufferMesh };
+	ID3D11Buffer* tempMeshVertexBuffer[] = { stonehengeVertexBuffer };
 	myDeviceContext->IASetVertexBuffers(0, 1, tempMeshVertexBuffer, meshStrides, meshOffsets);
-	myDeviceContext->IASetIndexBuffer(indiciesBufferMesh, DXGI_FORMAT_R32_UINT, 0);
+	myDeviceContext->IASetIndexBuffer(stonehengeIndicesBuffer, DXGI_FORMAT_R32_UINT, 0);
 	// stone henge texture upload
 	myDeviceContext->PSSetSamplers(0, 1, &samplerLinear);
-	myDeviceContext->PSSetShaderResources(0, 1, &textureRV);
+	myDeviceContext->PSSetShaderResources(0, 1, &stonehengeTex);
 	// set shaders
 	myDeviceContext->VSSetShader(vertexMeshShader, nullptr, 0);
 	myDeviceContext->PSSetShader(pixelMeshShader, nullptr, 0);
@@ -519,9 +526,19 @@ void Render()
 	//Upload those matricies to the video card
 	UploadToVideoCard();
 
-
-	//draw
+	//Draw Stonehenge
 	myDeviceContext->DrawIndexed(ARRAYSIZE(StoneHenge_indicies), 0, 0);
+
+	ID3D11Buffer* tempMeshVertexBuffer2[] = { barrelsVertexBuffer };
+	myDeviceContext->IASetVertexBuffers(0, 1, tempMeshVertexBuffer2, meshStrides, meshOffsets);
+	myDeviceContext->IASetIndexBuffer(barrelsIndicesBuffer, DXGI_FORMAT_R32_UINT, 0);
+	myDeviceContext->PSSetShaderResources(0, 1, &barrelsTex);
+	XMMATRIX barrelMatrix = XMMatrixTranslation(0.0f, 0.0f, -15.0f);
+	XMStoreFloat4x4(&myMatrices.worldMatrix, barrelMatrix);
+	UploadToVideoCard();
+
+	//Draw Barrels
+	myDeviceContext->DrawIndexed(ARRAYSIZE(barrels_indicies), 0, 0);
 
 	mySwapChain->Present(0, 0);
 }
@@ -529,16 +546,20 @@ void Render()
 void ReleaseInterfaces()
 {
 	delete[] stoneHenge;
+	barrelsTex->Release();
+	lightConstantBuffer->Release();
 	samplerLinear->Release();
-	textureRV->Release();
+	stonehengeTex->Release();
 	zBuffer->Release();
 	zBufferView->Release();
 	vertexMeshLayout->Release();
 	vertexMeshShader->Release();
 	pixelMeshShader->Release();
 	myRenderTargetView->Release();
-	vertexBufferMesh->Release();
-	indiciesBufferMesh->Release();
+	stonehengeVertexBuffer->Release();
+	stonehengeIndicesBuffer->Release();
+	barrelsVertexBuffer->Release();
+	barrelsIndicesBuffer->Release();
 	constantBuffer->Release();
 	myDeviceContext->Release();
 	mySwapChain->Release();
@@ -562,6 +583,54 @@ void UploadToVideoCard()
 	ID3D11Buffer* constants[] = { constantBuffer, lightConstantBuffer };
 	myDeviceContext->VSSetConstantBuffers(0, ARRAYSIZE(constants), constants);
 	myDeviceContext->PSSetConstantBuffers(0, ARRAYSIZE(constants), constants);
+}
+
+void CreateStoneHenge() 
+{
+	for (size_t i = 0; i < ARRAYSIZE(StoneHenge_data); i++)
+	{
+		//Set POSITION
+		stoneHenge[i].position.x = StoneHenge_data[i].pos[0];
+		stoneHenge[i].position.y = StoneHenge_data[i].pos[1];
+		stoneHenge[i].position.z = StoneHenge_data[i].pos[2];
+		stoneHenge[i].position.w = 1.0f;
+		//Set UV
+		stoneHenge[i].texture.x = StoneHenge_data[i].uvw[0];
+		stoneHenge[i].texture.y = StoneHenge_data[i].uvw[1];
+		//SET NORMAL
+		stoneHenge[i].normal.x = StoneHenge_data[i].nrm[0];
+		stoneHenge[i].normal.y = StoneHenge_data[i].nrm[1];
+		stoneHenge[i].normal.z = StoneHenge_data[i].nrm[2];
+	}
+
+	for (size_t i = 0; i < ARRAYSIZE(StoneHenge_indicies); i++)
+	{
+		stoneHengeIndices[i] = StoneHenge_indicies[i];
+	}
+}
+
+void CreateBarrels()
+{
+	for (size_t i = 0; i < ARRAYSIZE(barrels_data); i++)
+	{
+		//Set POSITION
+		barrels[i].position.x = barrels_data[i].pos[0];
+		barrels[i].position.y = barrels_data[i].pos[1];
+		barrels[i].position.z = barrels_data[i].pos[2];
+		barrels[i].position.w = 1.0f;
+		//Set UV
+		barrels[i].texture.x = barrels_data[i].uvw[0];
+		barrels[i].texture.y = barrels_data[i].uvw[1];
+		//SET NORMAL
+		barrels[i].normal.x = barrels_data[i].nrm[0];
+		barrels[i].normal.y = barrels_data[i].nrm[1];
+		barrels[i].normal.z = barrels_data[i].nrm[2];
+	}
+
+	for (size_t i = 0; i < ARRAYSIZE(barrels_indicies); i++)
+	{
+		barrelsIndices[i] = barrels_indicies[i];
+	}
 }
 
 void CheckUserInput()
