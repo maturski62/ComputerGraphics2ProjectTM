@@ -40,6 +40,11 @@ struct MyVertex
 	XMFLOAT3 normal;
 };
 
+//Camera
+float cameraX = 0.0f;
+float cameraY = 5.0f;
+float cameraZ = -20.0f;
+
 //Models
 MyVertex* stoneHenge = new MyVertex[ARRAYSIZE(StoneHenge_data)];
 unsigned int stoneHengeIndices[ARRAYSIZE(StoneHenge_indicies)];
@@ -457,7 +462,7 @@ void Render()
 	temp = XMMatrixTranslation(0.0f, 0.0f, 0.0f);
 	XMStoreFloat4x4(&myMatrices.worldMatrix, temp);
 	//view
-	temp = XMMatrixLookAtLH({ 1.0f, 5.0f, -20.0f }, { 0.0f, 0.0f, 1.0f }, { 0.0f, 1.0f, 0.0f });
+	temp = XMMatrixLookAtLH({ cameraX, cameraY, cameraZ }, { cameraX  , cameraY , cameraZ + 10.0f  }, { 0.0f, 1.0f, 0.0f });
 	XMStoreFloat4x4(&myMatrices.viewMatrix, temp);
 	//projection
 	temp = XMMatrixPerspectiveFovLH(3.14f / 2.0f, aspectRatio, nearPlane, farPlane);
@@ -506,10 +511,13 @@ void Render()
 	//Directional Light
 	lightDir = { -0.577f, 0.577f, -0.577f, 1.0f };
 	XMStoreFloat4(&myLights.vLightDir, lightDir);
-	lightColor = { 0.3f, 0.3f, 0.5f, 1.0f };
+	lightColor = { 0.35f, 0.35f, 0.5f, 1.0f };
 	XMStoreFloat4(&myLights.vLightColor, lightColor);
 	//Point Light
-	pointLightPos = { 0.0f, 5.0f, -5.0f, 1.0f };
+	pointLightPos = { 5.0f, 5.0f, -2.0f, 1.0f };
+	static float pointLightAngle = 0.0f; pointLightAngle += 0.001f;
+	XMMATRIX lightRotation = XMMatrixRotationY(pointLightAngle);
+	pointLightPos = XMVector4Transform(pointLightPos, lightRotation);
 	XMStoreFloat4(&myLights.vPointLightPos, pointLightPos);
 	pointLightColor = { 1.0f, 0.0f, 0.0f, 0.0f };
 	XMStoreFloat4(&myLights.vPointLightColor, pointLightColor);
@@ -532,7 +540,7 @@ void Render()
 	//Draw Barrels
 	myDeviceContext->DrawIndexed(ARRAYSIZE(barrels_indicies), 0, 0);
 
-	mySwapChain->Present(0, 0);
+	mySwapChain->Present(1, 0);
 }
 
 void ReleaseInterfaces()
@@ -628,46 +636,63 @@ void CreateBarrels()
 void CheckUserInput()
 {
 	//Adjust the Near or Far Plane
-	if (true)
+	//Increase Far Plane
+	if (GetAsyncKeyState('O'))
 	{
-		//Increase Far Plane
-		if (GetAsyncKeyState('O') & 0x1)
+		if (farPlane < 1000.0f) 
 		{
-			if (farPlane < 1000.0f) 
-			{
-				farPlane += 1.0f;
-			}
+			farPlane += 1.0f;
 		}
-		//Decrease Far Plane
-		if (GetAsyncKeyState('L') & 0x1)
+	}
+	//Decrease Far Plane
+	if (GetAsyncKeyState('L'))
+	{
+		if (farPlane > nearPlane + 0.1f)
 		{
-			if (farPlane > nearPlane + 0.1f)
-			{
-				farPlane -= 1.0f;
-			}
-		}
-
-		//Increase Near Plane
-		if (GetAsyncKeyState('I') & 0x1)
-		{
-			if (nearPlane < farPlane - 0.5f )
-			{
-				nearPlane += 1.0f;
-			}
-		}
-		//Decrease Near Plane
-		if (GetAsyncKeyState('K') & 0x1)
-		{
-			if (nearPlane > 0.5f)
-			{
-				nearPlane -= 1.0f;
-			}
+			farPlane -= 1.0f;
 		}
 	}
 
-	//Adjust the 
-	if (true)
+	//Increase Near Plane
+	if (GetAsyncKeyState('I'))
 	{
+		if (nearPlane < farPlane - 0.5f )
+		{
+			nearPlane += 1.0f;
+		}
+	}
+	//Decrease Near Plane
+	if (GetAsyncKeyState('K'))
+	{
+		if (nearPlane > 0.5f)
+		{
+			nearPlane -= 1.0f;
+		}
+	}
 
+	//Adjust the Camera
+	if (GetAsyncKeyState('W'))
+	{
+		cameraZ += 0.5f;
+	}
+	else if(GetAsyncKeyState('S'))
+	{
+		cameraZ -= 0.5f;
+	}
+	if (GetAsyncKeyState('A'))
+	{
+		cameraX -= 0.5f;
+	}
+	else if(GetAsyncKeyState('D'))
+	{
+		cameraX += 0.5f;
+	}
+	if (GetAsyncKeyState(VK_UP))
+	{
+		cameraY += 0.5f;
+	}
+	else if (GetAsyncKeyState(VK_DOWN))
+	{
+		cameraY -= 0.5f;
 	}
 }
