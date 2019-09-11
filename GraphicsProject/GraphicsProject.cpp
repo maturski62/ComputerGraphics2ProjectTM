@@ -5,12 +5,16 @@
 #include "GraphicsProject.h"
 #include "Colors.h"
 #include "DDSTextureLoader.h"
+#include <iostream>
+#include <vector>
+#include <fstream>
 
 #include <d3d11.h>
 #pragma comment(lib, "d3d11.lib")
 
 #include <DirectXMath.h>
 using namespace DirectX;
+using namespace std;
 
 //Shaders
 #include "VertexMeshShader.csh"
@@ -40,6 +44,12 @@ struct MyVertex
 	XMFLOAT3 normal;
 };
 
+struct SimpleMesh
+{
+	vector<MyVertex> vertexList;
+	vector<int> indicesList;
+};
+
 //Camera
 XMVECTOR camera;
 float cameraX = 0.0f;
@@ -57,6 +67,8 @@ MyVertex* stoneHenge = new MyVertex[ARRAYSIZE(StoneHenge_data)];
 unsigned int stoneHengeIndices[ARRAYSIZE(StoneHenge_indicies)];
 MyVertex* barrels = new MyVertex[ARRAYSIZE(barrels_data)];
 unsigned int barrelsIndices[ARRAYSIZE(barrels_indicies)];
+unsigned int numVertices = 0;
+unsigned int numIndices = 0;
 
 //Wave Variables
 XMFLOAT4 waveTime;
@@ -75,6 +87,7 @@ ID3D11Buffer* lightConstantBuffer;
 ID3D11SamplerState* samplerLinear;
 ID3D11ShaderResourceView* stonehengeTex;
 ID3D11ShaderResourceView* barrelsTex;
+ID3D11ShaderResourceView* cubeTex;
 
 //Mesh data
 //Stonehenge
@@ -83,6 +96,9 @@ ID3D11Buffer* stonehengeIndicesBuffer;
 //Barrels
 ID3D11Buffer* barrelsVertexBuffer;
 ID3D11Buffer* barrelsIndicesBuffer;
+//Cube
+ID3D11Buffer* cubeVertexBuffer;
+ID3D11Buffer* cubeIndicesBuffer;
 ID3D11InputLayout* vertexMeshLayout;
 ID3D11VertexShader* vertexMeshShader;
 ID3D11PixelShader* pixelMeshShader;
@@ -129,6 +145,7 @@ void ReleaseInterfaces();
 void CheckUserInput();
 void CreateStoneHenge();
 void CreateBarrels();
+//void LoadDotMesh(const char* meshFileName, SimpleMesh& mesh);
 
 int APIENTRY wWinMain(_In_ HINSTANCE hInstance,
 	_In_opt_ HINSTANCE hPrevInstance,
@@ -298,6 +315,11 @@ BOOL InitInstance(HINSTANCE hInstance, int nCmdShow)
 	hr = myDevice->CreateBuffer(&bDesc, nullptr, &lightConstantBuffer);
 
 	//Load Mesh Data
+	//const char* meshFilename = "Assets/cube.mesh";
+	//SimpleMesh simpleMesh;
+	//LoadDotMesh(meshFilename, simpleMesh);
+	//numVertices = simpleMesh.vertexList.size();
+	//numIndices = simpleMesh.indicesList.size();
 	CreateStoneHenge();
 	CreateBarrels();
 
@@ -306,10 +328,28 @@ BOOL InitInstance(HINSTANCE hInstance, int nCmdShow)
 	{
 		hr = CreateDDSTextureFromFile(myDevice, L"Assets/stoneHenge.dds", nullptr, &stonehengeTex);
 		hr = CreateDDSTextureFromFile(myDevice, L"Assets/barrelTexture.dds", nullptr, &barrelsTex);
+		//hr = CreateDDSTextureFromFile(myDevice, L"Assets/Crate.dds", nullptr, &cubeTex);
 	}
 
 	//Time for the wave
 	waveTime = { 0.0f, 0.0f, 0.0f, 0.0f };
+
+	////Load Cube
+	//D3D11_BUFFER_DESC bd = {};
+	//bd.Usage = D3D11_USAGE_DEFAULT;
+	//bd.ByteWidth = sizeof(MyVertex) * simpleMesh.vertexList.size();
+	//bd.BindFlags = D3D11_BIND_VERTEX_BUFFER;
+	//bd.CPUAccessFlags = 0;
+	//D3D11_SUBRESOURCE_DATA InitData = {};
+	//InitData.pSysMem = simpleMesh.vertexList.data();
+	//hr = myDevice->CreateBuffer(&bd, &InitData, &cubeVertexBuffer);
+	////IndexBuffer
+	//bd.Usage = D3D11_USAGE_DEFAULT;
+	//bd.ByteWidth = sizeof(int) * simpleMesh.indicesList.size();;        // 36 vertices needed for 12 triangles in a triangle list
+	//bd.BindFlags = D3D11_BIND_INDEX_BUFFER;
+	//bd.CPUAccessFlags = 0;
+	//InitData.pSysMem = simpleMesh.indicesList.data();
+	//hr = myDevice->CreateBuffer(&bd, &InitData, &cubeIndicesBuffer);
 
 	//Load Stonehenge
 	bDesc.BindFlags = D3D11_BIND_VERTEX_BUFFER;
@@ -504,8 +544,8 @@ void Render()
 	//setup pipeline
 	UINT meshStrides[] = { sizeof(MyVertex) };
 	UINT meshOffsets[] = { 0 };
-	ID3D11Buffer* tempMeshVertexBuffer[] = { stonehengeVertexBuffer };
-	myDeviceContext->IASetVertexBuffers(0, 1, tempMeshVertexBuffer, meshStrides, meshOffsets);
+	ID3D11Buffer* tempMeshVertexBuffer = stonehengeVertexBuffer;
+	myDeviceContext->IASetVertexBuffers(0, 1, &tempMeshVertexBuffer, meshStrides, meshOffsets);
 	myDeviceContext->IASetIndexBuffer(stonehengeIndicesBuffer, DXGI_FORMAT_R32_UINT, 0);
 	// stone henge texture upload
 	myDeviceContext->PSSetSamplers(0, 1, &samplerLinear);
@@ -534,35 +574,43 @@ void Render()
 	XMStoreFloat4(&myLights.vPointLightPos, pointLightPos);
 	pointLightColor = { 1.0f, 0.0f, 0.0f, 0.0f };
 	XMStoreFloat4(&myLights.vPointLightColor, pointLightColor);
-	ambient = { 0.0f, 0.0f, 0.0f, 1.0f };
+	ambient = { 0.2f, 0.2f, 0.2f, 1.0f };
 	XMStoreFloat4(&myLights.vAmbient, ambient);
 	//Upload those matricies to the video card
 	UploadToVideoCard();
-
 	//Draw Stonehenge
 	myDeviceContext->DrawIndexed(ARRAYSIZE(StoneHenge_indicies), 0, 0);
 
-	ID3D11Buffer* tempMeshVertexBuffer2[] = { barrelsVertexBuffer };
-	myDeviceContext->IASetVertexBuffers(0, 1, tempMeshVertexBuffer2, meshStrides, meshOffsets);
+	tempMeshVertexBuffer = barrelsVertexBuffer;
+	myDeviceContext->IASetVertexBuffers(0, 1, &tempMeshVertexBuffer, meshStrides, meshOffsets);
 	myDeviceContext->IASetIndexBuffer(barrelsIndicesBuffer, DXGI_FORMAT_R32_UINT, 0);
 	myDeviceContext->PSSetShaderResources(0, 1, &barrelsTex);
 	XMMATRIX barrelMatrix = XMMatrixTranslation(0.0f, 0.0f, -15.0f);
 	XMStoreFloat4x4(&myMatrices.worldMatrix, barrelMatrix);
 	UploadToVideoCard();
-
 	//Draw Barrels
 	myDeviceContext->DrawIndexed(ARRAYSIZE(barrels_indicies), 0, 0);
+
+	//tempMeshVertexBuffer = cubeVertexBuffer;
+	//myDeviceContext->IASetVertexBuffers(0, 1, &tempMeshVertexBuffer, meshStrides, meshOffsets);
+	//myDeviceContext->IASetIndexBuffer(cubeIndicesBuffer, DXGI_FORMAT_R32_UINT, 0);
+	//myDeviceContext->PSSetShaderResources(0, 1, &cubeTex);
+	//XMMATRIX cubeMatrix = XMMatrixTranslation(-5.0f, 0.0f, 0.0f);
+	//XMStoreFloat4x4(&myMatrices.worldMatrix, cubeMatrix);
+	//UploadToVideoCard();
+	////Draw Barrels
+	//myDeviceContext->DrawIndexed(numIndices, 0, 0);
 
 	mySwapChain->Present(1, 0);
 }
 
 void ReleaseInterfaces()
 {
-	delete[] stoneHenge;
+	stonehengeTex->Release();
 	barrelsTex->Release();
+	//cubeTex->Release();
 	lightConstantBuffer->Release();
 	samplerLinear->Release();
-	stonehengeTex->Release();
 	zBuffer->Release();
 	zBufferView->Release();
 	vertexMeshLayout->Release();
@@ -573,6 +621,8 @@ void ReleaseInterfaces()
 	stonehengeIndicesBuffer->Release();
 	barrelsVertexBuffer->Release();
 	barrelsIndicesBuffer->Release();
+	//cubeVertexBuffer->Release();
+	//cubeIndicesBuffer->Release();
 	constantBuffer->Release();
 	myDeviceContext->Release();
 	mySwapChain->Release();
@@ -734,3 +784,25 @@ void CheckUserInput()
 	//
 	//prevCursorPoint = cursorPoint;
 }
+
+//void LoadDotMesh(const char* meshFileName, SimpleMesh& mesh)
+//{
+//	std::fstream file{ meshFileName, std::ios_base::in | std::ios_base::binary };
+//
+//	assert(file.is_open());
+//
+//	uint32_t player_index_count;
+//	file.read((char*)& player_index_count, sizeof(uint32_t));
+//
+//	mesh.indicesList.resize(player_index_count);
+//
+//	file.read((char*)mesh.indicesList.data(), sizeof(uint32_t) * player_index_count);
+//
+//	uint32_t player_vertex_count;
+//	file.read((char*)& player_vertex_count, sizeof(uint32_t));
+//
+//	mesh.vertexList.resize(player_vertex_count);
+//
+//	file.read((char*)mesh.vertexList.data(), sizeof(MyVertex) * player_vertex_count);
+//	file.close();
+//}
