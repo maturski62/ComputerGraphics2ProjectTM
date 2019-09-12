@@ -85,7 +85,7 @@ XMVECTOR ambient;
 XMVECTOR spotLightPos;
 XMVECTOR spotLightDir;
 XMVECTOR spotLightColor;
-XMVECTOR coneRatio;
+XMVECTOR spotLightConeRatio;
 
 //Shader Variables
 ID3D11Buffer* constantBuffer;
@@ -130,6 +130,10 @@ struct Lights
 	XMFLOAT4 vPointLightPos;
 	XMFLOAT4 vPointLightColor;
 	XMFLOAT4 vAmbient;
+	XMFLOAT4 vSpotLightPos;
+	XMFLOAT4 vSpotLightDir;
+	XMFLOAT4 vSpotLightColor;
+	XMFLOAT4 vSpotLightConeRatio;
 }myLights;
 
 #define MAX_LOADSTRING 100
@@ -152,6 +156,7 @@ void CheckUserInput();
 void CreateStoneHenge();
 void CreateBarrels();
 void LoadDotMesh(const char* meshFileName, SimpleMesh& mesh);
+void MakeLights();
 
 int APIENTRY wWinMain(_In_ HINSTANCE hInstance,
 	_In_opt_ HINSTANCE hPrevInstance,
@@ -570,22 +575,7 @@ void Render()
 	XMMATRIX stoneHedge = XMMatrixIdentity();
 	XMStoreFloat4x4(&myMatrices.worldMatrix, stoneHedge);
 	//Set lighting variables
-	//Directional Light
-	static float lightAngle = -0.577f; lightAngle += 0.01;
-	lightDir = { -0.577f, 0.577f, -0.577f, 1.0f };
-	XMStoreFloat4(&myLights.vLightDir, lightDir);
-	lightColor = { 0.5f, 0.5f, 0.5f, 1.0f };
-	XMStoreFloat4(&myLights.vLightColor, lightColor);
-	//Point Light
-	pointLightPos = { 5.0f, 5.0f, -2.0f, 1.0f };
-	static float pointLightAngle = 0.0f; pointLightAngle += 0.05f;
-	XMMATRIX pointLightRotation = XMMatrixRotationY(pointLightAngle);
-	pointLightPos = XMVector4Transform(pointLightPos, pointLightRotation);
-	XMStoreFloat4(&myLights.vPointLightPos, pointLightPos);
-	pointLightColor = { 1.0f, 0.0f, 0.0f, 0.0f };
-	XMStoreFloat4(&myLights.vPointLightColor, pointLightColor);
-	ambient = { 0.2f, 0.2f, 0.2f, 1.0f };
-	XMStoreFloat4(&myLights.vAmbient, ambient);
+	MakeLights();
 	//Upload those matricies to the video card
 	UploadToVideoCard();
 	//Draw Stonehenge
@@ -854,4 +844,37 @@ void LoadDotMesh(const char* meshFileName, SimpleMesh& mesh)
 
 	file.read((char*)mesh.vertexList.data(), sizeof(MyVertex) * player_vertex_count);
 	file.close();
+}
+
+void MakeLights()
+{
+	//Direction Light 
+	static float lightAngle = -0.577f; lightAngle += 0.01;
+	lightDir = { -0.577f, 0.577f, -0.577f, 1.0f };
+	XMStoreFloat4(&myLights.vLightDir, lightDir);
+	lightColor = { 0.5f, 0.5f, 0.5f, 1.0f };
+	XMStoreFloat4(&myLights.vLightColor, lightColor);
+
+	//Point Light
+	pointLightPos = { 5.0f, 5.0f, -2.0f, 1.0f };
+	static float pointLightAngle = 0.0f; pointLightAngle += 0.05f;
+	XMMATRIX pointLightRotation = XMMatrixRotationY(pointLightAngle);
+	pointLightPos = XMVector4Transform(pointLightPos, pointLightRotation);
+	XMStoreFloat4(&myLights.vPointLightPos, pointLightPos);
+	pointLightColor = RED;
+	XMStoreFloat4(&myLights.vPointLightColor, pointLightColor);
+
+	//Spot Light
+	spotLightDir = { 0.0f, -1.0f, 0.0f, 0.0f };
+	XMStoreFloat4(&myLights.vSpotLightDir, spotLightDir);
+	spotLightPos = { -6.0f, 5.0f, -13.0f, 1.0f };
+	XMStoreFloat4(&myLights.vSpotLightPos, spotLightPos);
+	spotLightColor = MAGENTA;
+	XMStoreFloat4(&myLights.vSpotLightColor, spotLightColor);
+	spotLightConeRatio = { 0.9f, 0.0f, 0.0f, 0.0f };
+	XMStoreFloat4(&myLights.vSpotLightConeRatio, spotLightConeRatio);
+
+	//Other
+	ambient = { 0.2f, 0.2f, 0.2f, 1.0f };
+	XMStoreFloat4(&myLights.vAmbient, ambient);
 }
