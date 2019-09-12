@@ -52,6 +52,8 @@ struct SimpleMesh
 
 //Camera
 XMVECTOR camera;
+short deltaWheel;
+float FOVDivider = 2.0f;
 float cameraX = 0.0f;
 float cameraY = 5.0f;
 float cameraZ = -20.0f;
@@ -80,6 +82,10 @@ XMVECTOR lightColor;
 XMVECTOR pointLightPos;
 XMVECTOR pointLightColor;
 XMVECTOR ambient;
+XMVECTOR spotLightPos;
+XMVECTOR spotLightDir;
+XMVECTOR spotLightColor;
+XMVECTOR coneRatio;
 
 //Shader Variables
 ID3D11Buffer* constantBuffer;
@@ -145,7 +151,7 @@ void ReleaseInterfaces();
 void CheckUserInput();
 void CreateStoneHenge();
 void CreateBarrels();
-//void LoadDotMesh(const char* meshFileName, SimpleMesh& mesh);
+void LoadDotMesh(const char* meshFileName, SimpleMesh& mesh);
 
 int APIENTRY wWinMain(_In_ HINSTANCE hInstance,
 	_In_opt_ HINSTANCE hPrevInstance,
@@ -315,11 +321,11 @@ BOOL InitInstance(HINSTANCE hInstance, int nCmdShow)
 	hr = myDevice->CreateBuffer(&bDesc, nullptr, &lightConstantBuffer);
 
 	//Load Mesh Data
-	//const char* meshFilename = "Assets/cube.mesh";
-	//SimpleMesh simpleMesh;
-	//LoadDotMesh(meshFilename, simpleMesh);
-	//numVertices = simpleMesh.vertexList.size();
-	//numIndices = simpleMesh.indicesList.size();
+	const char* meshFilename = "Assets/cube.mesh";
+	SimpleMesh simpleMesh;
+	LoadDotMesh(meshFilename, simpleMesh);
+	numVertices = simpleMesh.vertexList.size();
+	numIndices = simpleMesh.indicesList.size();
 	CreateStoneHenge();
 	CreateBarrels();
 
@@ -328,28 +334,28 @@ BOOL InitInstance(HINSTANCE hInstance, int nCmdShow)
 	{
 		hr = CreateDDSTextureFromFile(myDevice, L"Assets/stoneHenge.dds", nullptr, &stonehengeTex);
 		hr = CreateDDSTextureFromFile(myDevice, L"Assets/barrelTexture.dds", nullptr, &barrelsTex);
-		//hr = CreateDDSTextureFromFile(myDevice, L"Assets/Crate.dds", nullptr, &cubeTex);
+		hr = CreateDDSTextureFromFile(myDevice, L"Assets/Crate.dds", nullptr, &cubeTex);
 	}
 
 	//Time for the wave
 	waveTime = { 0.0f, 0.0f, 0.0f, 0.0f };
 
-	////Load Cube
-	//D3D11_BUFFER_DESC bd = {};
-	//bd.Usage = D3D11_USAGE_DEFAULT;
-	//bd.ByteWidth = sizeof(MyVertex) * simpleMesh.vertexList.size();
-	//bd.BindFlags = D3D11_BIND_VERTEX_BUFFER;
-	//bd.CPUAccessFlags = 0;
-	//D3D11_SUBRESOURCE_DATA InitData = {};
-	//InitData.pSysMem = simpleMesh.vertexList.data();
-	//hr = myDevice->CreateBuffer(&bd, &InitData, &cubeVertexBuffer);
-	////IndexBuffer
-	//bd.Usage = D3D11_USAGE_DEFAULT;
-	//bd.ByteWidth = sizeof(int) * simpleMesh.indicesList.size();;        // 36 vertices needed for 12 triangles in a triangle list
-	//bd.BindFlags = D3D11_BIND_INDEX_BUFFER;
-	//bd.CPUAccessFlags = 0;
-	//InitData.pSysMem = simpleMesh.indicesList.data();
-	//hr = myDevice->CreateBuffer(&bd, &InitData, &cubeIndicesBuffer);
+	//Load Cube
+	D3D11_BUFFER_DESC bd = {};
+	bd.Usage = D3D11_USAGE_DEFAULT;
+	bd.ByteWidth = sizeof(MyVertex) * simpleMesh.vertexList.size();
+	bd.BindFlags = D3D11_BIND_VERTEX_BUFFER;
+	bd.CPUAccessFlags = 0;
+	D3D11_SUBRESOURCE_DATA InitData = {};
+	InitData.pSysMem = simpleMesh.vertexList.data();
+	hr = myDevice->CreateBuffer(&bd, &InitData, &cubeVertexBuffer);
+	//IndexBuffer
+	bd.Usage = D3D11_USAGE_DEFAULT;
+	bd.ByteWidth = sizeof(int) * simpleMesh.indicesList.size();;        // 36 vertices needed for 12 triangles in a triangle list
+	bd.BindFlags = D3D11_BIND_INDEX_BUFFER;
+	bd.CPUAccessFlags = 0;
+	InitData.pSysMem = simpleMesh.indicesList.data();
+	hr = myDevice->CreateBuffer(&bd, &InitData, &cubeIndicesBuffer);
 
 	//Load Stonehenge
 	bDesc.BindFlags = D3D11_BIND_VERTEX_BUFFER;
@@ -445,6 +451,10 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
 {
 	switch (message)
 	{
+	case WM_MOUSEWHEEL:
+		deltaWheel = GET_WHEEL_DELTA_WPARAM(wParam);
+		CheckUserInput();
+		break;
 	case WM_COMMAND:
 	{
 		int wmId = LOWORD(wParam);
@@ -514,10 +524,10 @@ void Render()
 	temp = XMMatrixTranslation(0.0f, 0.0f, 0.0f);
 	XMStoreFloat4x4(&myMatrices.worldMatrix, temp);
 	//view
-	temp = XMMatrixLookAtLH(camera, { cameraX, cameraY, cameraZ + 10.0f  }, { 0.0f, 1.0f, 0.0f });
+	temp = XMMatrixLookAtLH(camera, { cameraX, cameraY, cameraZ + 1.0f  }, { 0.0f, 1.0f, 0.0f });
 	XMStoreFloat4x4(&myMatrices.viewMatrix, temp);
 	//projection
-	temp = XMMatrixPerspectiveFovLH(3.14f / 2.0f, aspectRatio, nearPlane, farPlane);
+	temp = XMMatrixPerspectiveFovLH(3.14 / FOVDivider, aspectRatio, nearPlane, farPlane);
 	XMStoreFloat4x4(&myMatrices.projMatrix, temp);
 	//time
 	waveTime = { (waveTime.x + 0.05f), 0.0f, 0.0f, 0.0f };
@@ -591,15 +601,15 @@ void Render()
 	//Draw Barrels
 	myDeviceContext->DrawIndexed(ARRAYSIZE(barrels_indicies), 0, 0);
 
-	//tempMeshVertexBuffer = cubeVertexBuffer;
-	//myDeviceContext->IASetVertexBuffers(0, 1, &tempMeshVertexBuffer, meshStrides, meshOffsets);
-	//myDeviceContext->IASetIndexBuffer(cubeIndicesBuffer, DXGI_FORMAT_R32_UINT, 0);
-	//myDeviceContext->PSSetShaderResources(0, 1, &cubeTex);
-	//XMMATRIX cubeMatrix = XMMatrixTranslation(-5.0f, 0.0f, 0.0f);
-	//XMStoreFloat4x4(&myMatrices.worldMatrix, cubeMatrix);
-	//UploadToVideoCard();
-	////Draw Barrels
-	//myDeviceContext->DrawIndexed(numIndices, 0, 0);
+	tempMeshVertexBuffer = cubeVertexBuffer;
+	myDeviceContext->IASetVertexBuffers(0, 1, &tempMeshVertexBuffer, meshStrides, meshOffsets);
+	myDeviceContext->IASetIndexBuffer(cubeIndicesBuffer, DXGI_FORMAT_R32_UINT, 0);
+	myDeviceContext->PSSetShaderResources(0, 1, &cubeTex);
+	XMMATRIX cubeMatrix = XMMatrixTranslation(-5.0f, 0.0f, 0.0f);
+	XMStoreFloat4x4(&myMatrices.worldMatrix, cubeMatrix);
+	UploadToVideoCard();
+	//Draw Cube from .mesh file
+	myDeviceContext->DrawIndexed(numIndices, 0, 0);
 
 	mySwapChain->Present(1, 0);
 }
@@ -608,7 +618,7 @@ void ReleaseInterfaces()
 {
 	stonehengeTex->Release();
 	barrelsTex->Release();
-	//cubeTex->Release();
+	cubeTex->Release();
 	lightConstantBuffer->Release();
 	samplerLinear->Release();
 	zBuffer->Release();
@@ -621,8 +631,8 @@ void ReleaseInterfaces()
 	stonehengeIndicesBuffer->Release();
 	barrelsVertexBuffer->Release();
 	barrelsIndicesBuffer->Release();
-	//cubeVertexBuffer->Release();
-	//cubeIndicesBuffer->Release();
+	cubeVertexBuffer->Release();
+	cubeIndicesBuffer->Release();
 	constantBuffer->Release();
 	myDeviceContext->Release();
 	mySwapChain->Release();
@@ -783,26 +793,65 @@ void CheckUserInput()
 	//}
 	//
 	//prevCursorPoint = cursorPoint;
+
+	//FOV
+	//Reset normal FOV
+	if (deltaWheel > 0)
+	{
+		if (FOVDivider < 4.0f)
+		{
+			FOVDivider += 0.05f;
+		}
+	}
+	else if (deltaWheel < 0)
+	{
+		if (FOVDivider > 1.5)
+		{
+			FOVDivider -= 0.05f;
+		}
+	}
+	deltaWheel = 0;
+
+	if (GetAsyncKeyState('U') && GetAsyncKeyState('J') &0x1)
+	{
+		FOVDivider = 2.0f;
+	}
+	//Zoom in
+	else if (GetAsyncKeyState('U'))
+	{
+		if (FOVDivider < 4.0f)
+		{
+			FOVDivider += 0.01f;
+		}
+	}
+	//Zoom out
+	else if (GetAsyncKeyState('J'))
+	{
+		if (FOVDivider > 1.5)
+		{
+			FOVDivider -= 0.01f;
+		}
+	}
 }
 
-//void LoadDotMesh(const char* meshFileName, SimpleMesh& mesh)
-//{
-//	std::fstream file{ meshFileName, std::ios_base::in | std::ios_base::binary };
-//
-//	assert(file.is_open());
-//
-//	uint32_t player_index_count;
-//	file.read((char*)& player_index_count, sizeof(uint32_t));
-//
-//	mesh.indicesList.resize(player_index_count);
-//
-//	file.read((char*)mesh.indicesList.data(), sizeof(uint32_t) * player_index_count);
-//
-//	uint32_t player_vertex_count;
-//	file.read((char*)& player_vertex_count, sizeof(uint32_t));
-//
-//	mesh.vertexList.resize(player_vertex_count);
-//
-//	file.read((char*)mesh.vertexList.data(), sizeof(MyVertex) * player_vertex_count);
-//	file.close();
-//}
+void LoadDotMesh(const char* meshFileName, SimpleMesh& mesh)
+{
+	std::fstream file{ meshFileName, std::ios_base::in | std::ios_base::binary };
+
+	assert(file.is_open());
+
+	uint32_t player_index_count;
+	file.read((char*)& player_index_count, sizeof(uint32_t));
+
+	mesh.indicesList.resize(player_index_count);
+
+	file.read((char*)mesh.indicesList.data(), sizeof(uint32_t) * player_index_count);
+
+	uint32_t player_vertex_count;
+	file.read((char*)& player_vertex_count, sizeof(uint32_t));
+
+	mesh.vertexList.resize(player_vertex_count);
+
+	file.read((char*)mesh.vertexList.data(), sizeof(MyVertex) * player_vertex_count);
+	file.close();
+}
