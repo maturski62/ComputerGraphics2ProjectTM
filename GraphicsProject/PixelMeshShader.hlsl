@@ -46,8 +46,12 @@ float4 main(OutputVertex inputPixel) : SV_TARGET
     float4 spotLightDir = normalize(vSpotLightPos - inputPixel.worldPos);
     float surfaceRatio = dot(-spotLightDir, vSpotLightDir);
     float amountOfSpotLight = dot(spotLightDir, float4(inputPixel.nrm, 0));
-    float spotFactor = (surfaceRatio > vSpotLightConeRatio.x) ? 1.0f : 0.0f;
-    spotLightColor = (spotFactor * amountOfSpotLight * vSpotLightColor);
+    float innerAngle = vSpotLightConeRatio.x;
+    float outerAngle = vSpotLightConeRatio.x - 0.2f;
+    attenuation = 1.0f - saturate(length(vSpotLightPos - inputPixel.worldPos) / spotLightRange);
+    attenuation *= 1.0f - saturate((innerAngle - surfaceRatio) / (innerAngle - outerAngle));
+    attenuation *= attenuation;
+    spotLightColor = (amountOfSpotLight * vSpotLightColor) * attenuation;
 
     //Directional Light
     directionLightColor += saturate(dot(vLightDir, float4(inputPixel.nrm, 0)) * vLightColor);
@@ -55,11 +59,6 @@ float4 main(OutputVertex inputPixel) : SV_TARGET
 
     finalColor = directionLightColor + pointLightColor + spotLightColor;
     finalColor *= stoneHengeDiffuse.Sample(samLinear, inputPixel.tex);
-
-    // only for p light
-    // for every clamp function call, you may add ambient term ex:0.45 (optional)
-    // float4 finalColorforDlight = lerp(float4(0.0f, 0.0f, 0.0f, 1.0f), dLightColor, dlightRatio)
-    // float4 finalColorforPlight = lerp(float4(0.0f, 0.0f, 0.0f, 1.0f), pLightColor, plightRatio);
-    //  return (finalColorforPlight + finalColorforDlight + finalColorforSlight) * stoneHengeDiffuse.Sample(samLinear, inputPixel.tex);
+    
 	return finalColor;
 }
