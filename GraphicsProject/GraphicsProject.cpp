@@ -71,6 +71,11 @@ MyVertex* barrels = new MyVertex[ARRAYSIZE(barrels_data)];
 unsigned int barrelsIndices[ARRAYSIZE(barrels_indicies)];
 unsigned int numVertices = 0;
 unsigned int numIndices = 0;
+MyVertex* waterPlane = new MyVertex[2500];
+unsigned int waterPlaneIndicesArray[14406];
+vector<unsigned int> waterPlaneIndices;
+unsigned int numWaterVertices = 0;
+unsigned int numWaterIndices = 0;
 
 //Wave Variables
 XMFLOAT4 waveTime;
@@ -94,6 +99,7 @@ ID3D11SamplerState* samplerLinear;
 ID3D11ShaderResourceView* stonehengeTex;
 ID3D11ShaderResourceView* barrelsTex;
 ID3D11ShaderResourceView* cubeTex;
+ID3D11ShaderResourceView* waterTex;
 
 //Mesh data
 //Stonehenge
@@ -105,6 +111,9 @@ ID3D11Buffer* barrelsIndicesBuffer;
 //Cube
 ID3D11Buffer* cubeVertexBuffer;
 ID3D11Buffer* cubeIndicesBuffer;
+//Water
+ID3D11Buffer* waterVertexBuffer;
+ID3D11Buffer* waterIndicesBuffer;
 ID3D11InputLayout* vertexMeshLayout;
 ID3D11VertexShader* vertexMeshShader;
 ID3D11PixelShader* pixelMeshShader;
@@ -155,6 +164,7 @@ void ReleaseInterfaces();
 void CheckUserInput();
 void CreateStoneHenge();
 void CreateBarrels();
+void CreateWaterPlane();
 void LoadDotMesh(const char* meshFileName, SimpleMesh& mesh);
 void MakeLights();
 
@@ -333,6 +343,7 @@ BOOL InitInstance(HINSTANCE hInstance, int nCmdShow)
 	numIndices = simpleMesh.indicesList.size();
 	CreateStoneHenge();
 	CreateBarrels();
+	CreateWaterPlane();
 
 	//Creating Texture
 	if (myDevice)
@@ -340,6 +351,7 @@ BOOL InitInstance(HINSTANCE hInstance, int nCmdShow)
 		hr = CreateDDSTextureFromFile(myDevice, L"Assets/stoneHenge.dds", nullptr, &stonehengeTex);
 		hr = CreateDDSTextureFromFile(myDevice, L"Assets/barrelTexture.dds", nullptr, &barrelsTex);
 		hr = CreateDDSTextureFromFile(myDevice, L"Assets/Crate.dds", nullptr, &cubeTex);
+		hr = CreateDDSTextureFromFile(myDevice, L"Assets/water.dds", nullptr, &waterTex);
 	}
 
 	//Time for the wave
@@ -391,6 +403,21 @@ BOOL InitInstance(HINSTANCE hInstance, int nCmdShow)
 	bDesc.ByteWidth = sizeof(unsigned int) * ARRAYSIZE(barrelsIndices);
 	subData.pSysMem = barrelsIndices;
 	hr = myDevice->CreateBuffer(&bDesc, &subData, &barrelsIndicesBuffer);
+
+	//Load Water
+	bDesc.BindFlags = D3D11_BIND_VERTEX_BUFFER;
+	bDesc.ByteWidth = sizeof(MyVertex) * numWaterVertices;
+	bDesc.CPUAccessFlags = 0;
+	bDesc.MiscFlags = 0;
+	bDesc.StructureByteStride = 0;
+	bDesc.Usage = D3D11_USAGE_IMMUTABLE;
+	subData.pSysMem = waterPlane;
+	hr = myDevice->CreateBuffer(&bDesc, &subData, &waterVertexBuffer);
+	//index buffer mesh
+	bDesc.BindFlags = D3D11_BIND_INDEX_BUFFER;
+	bDesc.ByteWidth = sizeof(unsigned int) * numWaterIndices;
+	subData.pSysMem = waterPlaneIndicesArray;
+	hr = myDevice->CreateBuffer(&bDesc, &subData, &waterIndicesBuffer);
 
 	//Load new mesh shader
 	hr = myDevice->CreateVertexShader(VertexMeshShader, sizeof(VertexMeshShader), nullptr, &vertexMeshShader);
@@ -517,7 +544,7 @@ INT_PTR CALLBACK About(HWND hDlg, UINT message, WPARAM wParam, LPARAM lParam)
 void Render()
 {
 	//Clear screen to one color
-	float color[] = BLACK;
+	float color[] = CYAN;
 	myDeviceContext->ClearRenderTargetView(myRenderTargetView, color);
 	myDeviceContext->ClearDepthStencilView(zBufferView, D3D11_CLEAR_DEPTH, 1, 0);
 
@@ -601,6 +628,16 @@ void Render()
 	//Draw Cube from .mesh file
 	myDeviceContext->DrawIndexed(numIndices, 0, 0);
 
+	tempMeshVertexBuffer = waterVertexBuffer;
+	myDeviceContext->IASetVertexBuffers(0, 1, &tempMeshVertexBuffer, meshStrides, meshOffsets);
+	myDeviceContext->IASetIndexBuffer(waterIndicesBuffer, DXGI_FORMAT_R32_UINT, 0);
+	myDeviceContext->PSSetShaderResources(0, 1, &waterTex);
+	XMMATRIX waterMatrix = XMMatrixTranslation(-25.0f, -10.0f, -25.0f);
+	XMStoreFloat4x4(&myMatrices.worldMatrix, waterMatrix);
+	UploadToVideoCard();
+	//Draw Cube from .mesh file
+	myDeviceContext->DrawIndexed(14118, 0, 0);
+
 	mySwapChain->Present(1, 0);
 }
 
@@ -609,6 +646,7 @@ void ReleaseInterfaces()
 	stonehengeTex->Release();
 	barrelsTex->Release();
 	cubeTex->Release();
+	waterTex->Release();
 	lightConstantBuffer->Release();
 	samplerLinear->Release();
 	zBuffer->Release();
@@ -623,6 +661,8 @@ void ReleaseInterfaces()
 	barrelsIndicesBuffer->Release();
 	cubeVertexBuffer->Release();
 	cubeIndicesBuffer->Release();
+	waterVertexBuffer->Release();
+	waterIndicesBuffer->Release();
 	constantBuffer->Release();
 	myDeviceContext->Release();
 	mySwapChain->Release();
@@ -693,6 +733,75 @@ void CreateBarrels()
 	for (size_t i = 0; i < ARRAYSIZE(barrels_indicies); i++)
 	{
 		barrelsIndices[i] = barrels_indicies[i];
+	}
+}
+
+void CreateWaterPlane()
+{
+	int limit = 50;
+	int index = 0;
+	float xuRatio = 0.0f;
+	float zvRatio = 0.0f;
+
+	//Vertices
+	for (int x = 0; x < limit; x++)
+	{
+		for (int z = 0; z < limit; z++)
+		{
+			//Position
+			waterPlane[index].position.x = x;
+			waterPlane[index].position.y = 0.0f;
+			waterPlane[index].position.z = z;
+			waterPlane[index].position.w = 1.0f;
+			//Texture
+			xuRatio = float(x) / float(limit - 1);
+			zvRatio = float(z) / float(limit - 1);
+			waterPlane[index].texture.x = xuRatio;
+			waterPlane[index].texture.y = zvRatio;
+			//Normals
+			waterPlane[index].normal.x = 0.0f;
+			waterPlane[index].normal.y = 1.0f;
+			waterPlane[index].normal.z = 0.0f;
+
+			index++;
+		}
+	}
+
+	numWaterVertices = index;
+
+	//Indices
+	index = 0;
+	int bottomIndex = 0;
+	int indicesLimit = (limit - 1) * (limit - 1);
+	for (int i = 0; i < indicesLimit; i++)
+	{
+		if ((index - bottomIndex) == (limit - 1))
+		{
+			index++;
+			bottomIndex = index;
+		}
+		if (i == indicesLimit - 1)
+		{
+			i = indicesLimit - 1;
+		}
+
+		//Bottom Left Triangle
+		waterPlaneIndices.push_back(index);
+		waterPlaneIndices.push_back(index + 1);
+		waterPlaneIndices.push_back(index + limit);
+		//Top Right Triangle
+		waterPlaneIndices.push_back(index + 1);
+		waterPlaneIndices.push_back(index + 1 + 50);
+		waterPlaneIndices.push_back(index + limit);
+
+		index++;
+	}
+
+	numWaterIndices = waterPlaneIndices.size();
+
+	for (int i = 0; i < numWaterIndices; i++)
+	{
+		waterPlaneIndicesArray[i] = waterPlaneIndices.at(i);
 	}
 }
 
@@ -807,21 +916,21 @@ void CheckUserInput()
 		FOVDivider = 2.0f;
 	}
 	//Zoom in
-	else if (GetAsyncKeyState('U'))
-	{
-		if (FOVDivider < 4.0f)
-		{
-			FOVDivider += 0.01f;
-		}
-	}
-	//Zoom out
-	else if (GetAsyncKeyState('J'))
-	{
-		if (FOVDivider > 1.5)
-		{
-			FOVDivider -= 0.01f;
-		}
-	}
+	//else if (GetAsyncKeyState('U'))
+	//{
+	//	if (FOVDivider < 4.0f)
+	//	{
+	//		FOVDivider += 0.01f;
+	//	}
+	//}
+	////Zoom out
+	//else if (GetAsyncKeyState('J'))
+	//{
+	//	if (FOVDivider > 1.5)
+	//	{
+	//		FOVDivider -= 0.01f;
+	//	}
+	//}
 }
 
 void LoadDotMesh(const char* meshFileName, SimpleMesh& mesh)
@@ -867,11 +976,11 @@ void MakeLights()
 	//Spot Light
 	spotLightDir = { 0.0f, -1.0f, 0.0f, 0.0f };
 	XMStoreFloat4(&myLights.vSpotLightDir, spotLightDir);
-	spotLightPos = { -6.0f, 5.0f, -13.0f, 1.0f };
+	spotLightPos = { -6.0f, 3.0f, -13.0f, 1.0f };
 	XMStoreFloat4(&myLights.vSpotLightPos, spotLightPos);
 	spotLightColor = MAGENTA;
 	XMStoreFloat4(&myLights.vSpotLightColor, spotLightColor);
-	spotLightConeRatio = { 0.9f, 0.0f, 0.0f, 0.0f };
+	spotLightConeRatio = { 0.8f, 0.0f, 0.0f, 0.0f };
 	XMStoreFloat4(&myLights.vSpotLightConeRatio, spotLightConeRatio);
 
 	//Other

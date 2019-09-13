@@ -35,7 +35,7 @@ float4 main(OutputVertex inputPixel) : SV_TARGET
     float spotLightRange = 10.0f;
     float attenuation = 0;
 
-    //Point Light
+    //Center Point Light
     float4 pointLightDir = normalize(vPointLightPos - inputPixel.worldPos);
     float amountOfPointLight = dot(pointLightDir, float4(inputPixel.nrm, 0));
     attenuation = 1.0f - saturate(length(vPointLightPos - inputPixel.worldPos) / pointLightRange);
@@ -50,7 +50,7 @@ float4 main(OutputVertex inputPixel) : SV_TARGET
     float outerAngle = vSpotLightConeRatio.x - 0.2f;
     attenuation = 1.0f - saturate(length(vSpotLightPos - inputPixel.worldPos) / spotLightRange);
     attenuation *= 1.0f - saturate((innerAngle - surfaceRatio) / (innerAngle - outerAngle));
-    attenuation *= attenuation;
+    //attenuation *= attenuation;
     spotLightColor = (amountOfSpotLight * vSpotLightColor) * attenuation;
 
     //Directional Light
