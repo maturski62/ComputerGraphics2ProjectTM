@@ -72,10 +72,8 @@ unsigned int barrelsIndices[ARRAYSIZE(barrels_indicies)];
 unsigned int numVertices = 0;
 unsigned int numIndices = 0;
 MyVertex* waterPlane = new MyVertex[2500];
-unsigned int waterPlaneIndicesArray[14406];
-vector<unsigned int> waterPlaneIndices;
+unsigned int waterPlaneIndicesArray[726];
 unsigned int numWaterVertices = 0;
-unsigned int numWaterIndices = 0;
 
 //Wave Variables
 XMFLOAT4 waveTime;
@@ -113,7 +111,6 @@ ID3D11Buffer* cubeVertexBuffer;
 ID3D11Buffer* cubeIndicesBuffer;
 //Water
 ID3D11Buffer* waterVertexBuffer;
-ID3D11Buffer* waterIndicesBuffer;
 ID3D11InputLayout* vertexMeshLayout;
 ID3D11VertexShader* vertexMeshShader;
 ID3D11PixelShader* pixelMeshShader;
@@ -413,11 +410,11 @@ BOOL InitInstance(HINSTANCE hInstance, int nCmdShow)
 	bDesc.Usage = D3D11_USAGE_IMMUTABLE;
 	subData.pSysMem = waterPlane;
 	hr = myDevice->CreateBuffer(&bDesc, &subData, &waterVertexBuffer);
-	//index buffer mesh
-	bDesc.BindFlags = D3D11_BIND_INDEX_BUFFER;
-	bDesc.ByteWidth = sizeof(unsigned int) * numWaterIndices;
-	subData.pSysMem = waterPlaneIndicesArray;
-	hr = myDevice->CreateBuffer(&bDesc, &subData, &waterIndicesBuffer);
+	////index buffer mesh
+	//bDesc.BindFlags = D3D11_BIND_INDEX_BUFFER;
+	//bDesc.ByteWidth = sizeof(unsigned int) * numWaterIndices;
+	//subData.pSysMem = waterPlaneIndicesArray;
+	//hr = myDevice->CreateBuffer(&bDesc, &subData, &waterIndicesBuffer);
 
 	//Load new mesh shader
 	hr = myDevice->CreateVertexShader(VertexMeshShader, sizeof(VertexMeshShader), nullptr, &vertexMeshShader);
@@ -630,13 +627,12 @@ void Render()
 
 	tempMeshVertexBuffer = waterVertexBuffer;
 	myDeviceContext->IASetVertexBuffers(0, 1, &tempMeshVertexBuffer, meshStrides, meshOffsets);
-	myDeviceContext->IASetIndexBuffer(waterIndicesBuffer, DXGI_FORMAT_R32_UINT, 0);
 	myDeviceContext->PSSetShaderResources(0, 1, &waterTex);
-	XMMATRIX waterMatrix = XMMatrixTranslation(-25.0f, -10.0f, -25.0f);
+	XMMATRIX waterMatrix = XMMatrixTranslation(-50.0f, -1.0f, -50.0f);
 	XMStoreFloat4x4(&myMatrices.worldMatrix, waterMatrix);
 	UploadToVideoCard();
-	//Draw Cube from .mesh file
-	myDeviceContext->DrawIndexed(14118, 0, 0);
+	//Draw Water
+	myDeviceContext->Draw(numWaterVertices, 0);
 
 	mySwapChain->Present(1, 0);
 }
@@ -662,7 +658,6 @@ void ReleaseInterfaces()
 	cubeVertexBuffer->Release();
 	cubeIndicesBuffer->Release();
 	waterVertexBuffer->Release();
-	waterIndicesBuffer->Release();
 	constantBuffer->Release();
 	myDeviceContext->Release();
 	mySwapChain->Release();
@@ -738,71 +733,72 @@ void CreateBarrels()
 
 void CreateWaterPlane()
 {
-	int limit = 50;
+	int amountOfVertices = 121;
 	int index = 0;
+	int ratioDivider = sqrt(amountOfVertices) - 1;
+	int size = static_cast<int>(sqrt(amountOfVertices));
+	float spacing = 10.0f;
+	float xPos = 0.0f;
 	float xuRatio = 0.0f;
+	float zPos = 0.0f;
 	float zvRatio = 0.0f;
+	float yPos = 0.0f;
 
-	//Vertices
-	for (int x = 0; x < limit; x++)
+	for (int x = 0; x < size; x++)
 	{
-		for (int z = 0; z < limit; z++)
+		for (int z = 0; z < size; z++)
 		{
-			//Position
-			waterPlane[index].position.x = x;
-			waterPlane[index].position.y = 0.0f;
-			waterPlane[index].position.z = z;
-			waterPlane[index].position.w = 1.0f;
-			//Texture
-			xuRatio = float(x) / float(limit - 1);
-			zvRatio = float(z) / float(limit - 1);
-			waterPlane[index].texture.x = xuRatio;
-			waterPlane[index].texture.y = zvRatio;
-			//Normals
-			waterPlane[index].normal.x = 0.0f;
-			waterPlane[index].normal.y = 1.0f;
-			waterPlane[index].normal.z = 0.0f;
 
+			if (x == 0)
+				xPos = static_cast<float>(x);
+			else
+				xPos = static_cast<float>(x) * spacing;
+
+			if (z == 0)
+				zPos = static_cast<float>(z);
+			else
+				zPos = static_cast<float>(z) * spacing;
+
+			xuRatio = static_cast<float>(x) / (size - 1);
+			zvRatio = static_cast<float>(z) / (size - 1);
+
+			//Bottom Left Triangle
+			//Bottom Left Vertex
+			waterPlane[index].position = { xPos, yPos, zPos, 1.0f };
+			waterPlane[index].texture = { xuRatio, zvRatio };
+			waterPlane[index].normal = { 0.0f, 1.0f, 0.0f };
+			index++;
+			//Top Left Vertex
+			zvRatio = (static_cast<float>(z) + 1.0f) / (size - 1);
+			waterPlane[index].position = { xPos, yPos, zPos + spacing, 1.0f };
+			waterPlane[index].texture = { xuRatio, zvRatio };
+			waterPlane[index].normal = { 0.0f, 1.0f, 0.0f };
+			index++;
+			//Bottom Right Vertex
+			xuRatio = (static_cast<float>(x) + 1.0f) / (size - 1);
+			zvRatio = static_cast<float>(z) / (size - 1);
+			waterPlane[index].position = { xPos + spacing, yPos, zPos, 1.0f };
+			waterPlane[index].texture = { xuRatio, zvRatio };
+			waterPlane[index].normal = { 0.0f, 1.0f, 0.0f };
+			index++;
+
+			//Top Right Triangle
+			//Bottom Right Vertex
+			waterPlane[index] = waterPlane[index - 1];
+			index++;
+			//Top Left Vertex
+			waterPlane[index] = waterPlane[index - 3];
+			index++;
+			//Top Right Vertex
+			xuRatio = (static_cast<float>(x) + 1.0f) / (size - 1);
+			zvRatio = (static_cast<float>(z) + 1.0f) / (size - 1);
+			waterPlane[index].position = { xPos + spacing, yPos, zPos + spacing, 1.0f };
+			waterPlane[index].texture = { xuRatio, zvRatio };
+			waterPlane[index].normal = { 0.0f, 1.0f, 0.0f };
 			index++;
 		}
 	}
-
 	numWaterVertices = index;
-
-	//Indices
-	index = 0;
-	int bottomIndex = 0;
-	int indicesLimit = (limit - 1) * (limit - 1);
-	for (int i = 0; i < indicesLimit; i++)
-	{
-		if ((index - bottomIndex) == (limit - 1))
-		{
-			index++;
-			bottomIndex = index;
-		}
-		if (i == indicesLimit - 1)
-		{
-			i = indicesLimit - 1;
-		}
-
-		//Bottom Left Triangle
-		waterPlaneIndices.push_back(index);
-		waterPlaneIndices.push_back(index + 1);
-		waterPlaneIndices.push_back(index + limit);
-		//Top Right Triangle
-		waterPlaneIndices.push_back(index + 1);
-		waterPlaneIndices.push_back(index + 1 + 50);
-		waterPlaneIndices.push_back(index + limit);
-
-		index++;
-	}
-
-	numWaterIndices = waterPlaneIndices.size();
-
-	for (int i = 0; i < numWaterIndices; i++)
-	{
-		waterPlaneIndicesArray[i] = waterPlaneIndices.at(i);
-	}
 }
 
 void CheckUserInput()
