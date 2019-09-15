@@ -19,7 +19,6 @@ struct OutputVertex
 	float2 tex : TEXCOORD;
 	float3 nrm : NORMAL;
     float4 worldPos : WORLDPOS;
-    float4 localPos : LOCALPOS;
 };
 
 cbuffer CONSTANT_BUFFER : register(b0)
@@ -45,7 +44,6 @@ OutputVertex main(InputVertex input)
     output.pos.y += amplitude * sin((dotProduct * frequency) + waveTime.x);
 
 	// Do math here (shader intrinsics)
-    output.localPos = output.pos;
     output.pos = mul(output.pos, worldMatrix);
     output.worldPos = output.pos;
 	output.pos = mul(output.pos, viewMatrix);
