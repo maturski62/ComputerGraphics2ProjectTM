@@ -1,5 +1,6 @@
 
 Texture2D stoneHengeDiffuse : register(t0);
+TextureCube skybox : register(t1);
 SamplerState samLinear : register(s0);
 
 struct OutputVertex
@@ -8,6 +9,7 @@ struct OutputVertex
     float2 tex : TEXCOORD;
     float3 nrm : NORMAL;
     float4 worldPos : WORLDPOS;
+    float4 localPos : LOCALPOS;
 };
 
 cbuffer PSConstantBuffer : register(b1)

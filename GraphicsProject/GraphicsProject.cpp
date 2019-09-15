@@ -74,6 +74,8 @@ unsigned int numIndices = 0;
 MyVertex* waterPlane = new MyVertex[2500];
 unsigned int waterPlaneIndicesArray[726];
 unsigned int numWaterVertices = 0;
+MyVertex* skybox = new MyVertex[36];
+unsigned int numSkyboxVertices = 0;
 
 //Wave Variables
 XMFLOAT4 waveTime;
@@ -98,6 +100,7 @@ ID3D11ShaderResourceView* stonehengeTex;
 ID3D11ShaderResourceView* barrelsTex;
 ID3D11ShaderResourceView* cubeTex;
 ID3D11ShaderResourceView* waterTex;
+ID3D11ShaderResourceView* skyboxTex;
 
 //Mesh data
 //Stonehenge
@@ -111,6 +114,8 @@ ID3D11Buffer* cubeVertexBuffer;
 ID3D11Buffer* cubeIndicesBuffer;
 //Water
 ID3D11Buffer* waterVertexBuffer;
+//Skybox
+ID3D11Buffer* skyBoxVertexBuffer;
 ID3D11InputLayout* vertexMeshLayout;
 ID3D11VertexShader* vertexMeshShader;
 ID3D11PixelShader* pixelMeshShader;
@@ -162,6 +167,7 @@ void CheckUserInput();
 void CreateStoneHenge();
 void CreateBarrels();
 void CreateWaterPlane();
+void CreateSkyBox();
 void LoadDotMesh(const char* meshFileName, SimpleMesh& mesh);
 void MakeLights();
 
@@ -341,6 +347,7 @@ BOOL InitInstance(HINSTANCE hInstance, int nCmdShow)
 	CreateStoneHenge();
 	CreateBarrels();
 	CreateWaterPlane();
+	CreateSkyBox();
 
 	//Creating Texture
 	if (myDevice)
@@ -349,6 +356,7 @@ BOOL InitInstance(HINSTANCE hInstance, int nCmdShow)
 		hr = CreateDDSTextureFromFile(myDevice, L"Assets/barrelTexture.dds", nullptr, &barrelsTex);
 		hr = CreateDDSTextureFromFile(myDevice, L"Assets/Crate.dds", nullptr, &cubeTex);
 		hr = CreateDDSTextureFromFile(myDevice, L"Assets/water.dds", nullptr, &waterTex);
+		hr = CreateDDSTextureFromFile(myDevice, L"Assets/Skybox.dds", nullptr, &skyboxTex);
 	}
 
 	//Time for the wave
@@ -410,11 +418,16 @@ BOOL InitInstance(HINSTANCE hInstance, int nCmdShow)
 	bDesc.Usage = D3D11_USAGE_IMMUTABLE;
 	subData.pSysMem = waterPlane;
 	hr = myDevice->CreateBuffer(&bDesc, &subData, &waterVertexBuffer);
-	////index buffer mesh
-	//bDesc.BindFlags = D3D11_BIND_INDEX_BUFFER;
-	//bDesc.ByteWidth = sizeof(unsigned int) * numWaterIndices;
-	//subData.pSysMem = waterPlaneIndicesArray;
-	//hr = myDevice->CreateBuffer(&bDesc, &subData, &waterIndicesBuffer);
+
+	//Load Skybox
+	bDesc.BindFlags = D3D11_BIND_VERTEX_BUFFER;
+	bDesc.ByteWidth = sizeof(MyVertex) * numSkyboxVertices;
+	bDesc.CPUAccessFlags = 0;
+	bDesc.MiscFlags = 0;
+	bDesc.StructureByteStride = 0;
+	bDesc.Usage = D3D11_USAGE_IMMUTABLE;
+	subData.pSysMem = skybox;
+	hr = myDevice->CreateBuffer(&bDesc, &subData, &skyBoxVertexBuffer);
 
 	//Load new mesh shader
 	hr = myDevice->CreateVertexShader(VertexMeshShader, sizeof(VertexMeshShader), nullptr, &vertexMeshShader);
@@ -543,7 +556,6 @@ void Render()
 	//Clear screen to one color
 	float color[] = CYAN;
 	myDeviceContext->ClearRenderTargetView(myRenderTargetView, color);
-	myDeviceContext->ClearDepthStencilView(zBufferView, D3D11_CLEAR_DEPTH, 1, 0);
 
 	//Check for user input
 	CheckUserInput();
@@ -572,7 +584,15 @@ void Render()
 	myDeviceContext->OMSetRenderTargets(1, tempRenderTargetView, zBufferView);
 	//Rasterizer
 	myDeviceContext->RSSetViewports(1, &myViewPort);
-	//Upload those matricies to the video card
+	// set shaders
+	myDeviceContext->VSSetShader(vertexMeshShader, nullptr, 0);
+	myDeviceContext->PSSetShader(pixelMeshShader, nullptr, 0);
+	myDeviceContext->PSSetSamplers(0, 1, &samplerLinear);
+	myDeviceContext->IASetInputLayout(vertexMeshLayout);
+	myDeviceContext->IASetPrimitiveTopology(D3D11_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
+	//Set lighting variables
+	MakeLights();
+	//Upload to the video card
 	UploadToVideoCard();
 
 	//Immediate context 
@@ -583,28 +603,21 @@ void Render()
 	//setup pipeline
 	UINT meshStrides[] = { sizeof(MyVertex) };
 	UINT meshOffsets[] = { 0 };
+
+
+	myDeviceContext->ClearDepthStencilView(zBufferView, D3D11_CLEAR_DEPTH, 1, 0);
+
+	//Draw Stonehenge
 	ID3D11Buffer* tempMeshVertexBuffer = stonehengeVertexBuffer;
 	myDeviceContext->IASetVertexBuffers(0, 1, &tempMeshVertexBuffer, meshStrides, meshOffsets);
 	myDeviceContext->IASetIndexBuffer(stonehengeIndicesBuffer, DXGI_FORMAT_R32_UINT, 0);
-	// stone henge texture upload
-	myDeviceContext->PSSetSamplers(0, 1, &samplerLinear);
 	myDeviceContext->PSSetShaderResources(0, 1, &stonehengeTex);
-	// set shaders
-	myDeviceContext->VSSetShader(vertexMeshShader, nullptr, 0);
-	myDeviceContext->PSSetShader(pixelMeshShader, nullptr, 0);
-	myDeviceContext->IASetInputLayout(vertexMeshLayout);
-	myDeviceContext->IASetPrimitiveTopology(D3D11_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
-
-	//Modify world matrix before drawing next mesh
 	XMMATRIX stoneHedge = XMMatrixIdentity();
 	XMStoreFloat4x4(&myMatrices.worldMatrix, stoneHedge);
-	//Set lighting variables
-	MakeLights();
-	//Upload those matricies to the video card
 	UploadToVideoCard();
-	//Draw Stonehenge
 	myDeviceContext->DrawIndexed(ARRAYSIZE(StoneHenge_indicies), 0, 0);
 
+	//Draw Barrels
 	tempMeshVertexBuffer = barrelsVertexBuffer;
 	myDeviceContext->IASetVertexBuffers(0, 1, &tempMeshVertexBuffer, meshStrides, meshOffsets);
 	myDeviceContext->IASetIndexBuffer(barrelsIndicesBuffer, DXGI_FORMAT_R32_UINT, 0);
@@ -612,9 +625,9 @@ void Render()
 	XMMATRIX barrelMatrix = XMMatrixTranslation(0.0f, 0.0f, -15.0f);
 	XMStoreFloat4x4(&myMatrices.worldMatrix, barrelMatrix);
 	UploadToVideoCard();
-	//Draw Barrels
 	myDeviceContext->DrawIndexed(ARRAYSIZE(barrels_indicies), 0, 0);
 
+	//Draw Cube from .mesh file
 	tempMeshVertexBuffer = cubeVertexBuffer;
 	myDeviceContext->IASetVertexBuffers(0, 1, &tempMeshVertexBuffer, meshStrides, meshOffsets);
 	myDeviceContext->IASetIndexBuffer(cubeIndicesBuffer, DXGI_FORMAT_R32_UINT, 0);
@@ -622,16 +635,15 @@ void Render()
 	XMMATRIX cubeMatrix = XMMatrixTranslation(-5.0f, 0.0f, 0.0f);
 	XMStoreFloat4x4(&myMatrices.worldMatrix, cubeMatrix);
 	UploadToVideoCard();
-	//Draw Cube from .mesh file
 	myDeviceContext->DrawIndexed(numIndices, 0, 0);
 
+	//Draw Water
 	tempMeshVertexBuffer = waterVertexBuffer;
 	myDeviceContext->IASetVertexBuffers(0, 1, &tempMeshVertexBuffer, meshStrides, meshOffsets);
 	myDeviceContext->PSSetShaderResources(0, 1, &waterTex);
 	XMMATRIX waterMatrix = XMMatrixTranslation(-50.0f, -1.0f, -50.0f);
 	XMStoreFloat4x4(&myMatrices.worldMatrix, waterMatrix);
 	UploadToVideoCard();
-	//Draw Water
 	myDeviceContext->Draw(numWaterVertices, 0);
 
 	mySwapChain->Present(1, 0);
@@ -643,6 +655,7 @@ void ReleaseInterfaces()
 	barrelsTex->Release();
 	cubeTex->Release();
 	waterTex->Release();
+	skyboxTex->Release();
 	lightConstantBuffer->Release();
 	samplerLinear->Release();
 	zBuffer->Release();
@@ -658,6 +671,7 @@ void ReleaseInterfaces()
 	cubeVertexBuffer->Release();
 	cubeIndicesBuffer->Release();
 	waterVertexBuffer->Release();
+	skyBoxVertexBuffer->Release();
 	constantBuffer->Release();
 	myDeviceContext->Release();
 	mySwapChain->Release();
@@ -799,6 +813,68 @@ void CreateWaterPlane()
 		}
 	}
 	numWaterVertices = index;
+}
+
+void CreateSkyBox()
+{
+	//Front
+	skybox[0].position = { -1.0f, -1.0f, -1.0f, 1.0f };//Bottom Left
+	skybox[1].position = { -1.0f, 1.0f, -1.0f, 1.0f };//Top Left
+	skybox[2].position = { 1.0f, -1.0f, -1.0f, 1.0f };//Bottom Right
+	skybox[3].position = { 1.0f, -1.0f, -1.0f, 1.0f };//Bottom Right
+	skybox[4].position = { -1.0f, 1.0f, -1.0f, 1.0f };//Top Left
+	skybox[5].position = { 1.0f, 1.0f, -1.0f, 1.0f };//Top Right
+
+	//Right
+	skybox[6].position = { 1.0f, -1.0f, -1.0f, 1.0f };//Bottom Left
+	skybox[7].position = { 1.0f, 1.0f, -1.0f, 1.0f };//Top Left
+	skybox[8].position = { 1.0f, -1.0f, 1.0f, 1.0f };//Bottom Right
+	skybox[9].position = { 1.0f, -1.0f, 1.0f, 1.0f };//Bottom Right
+	skybox[10].position = { 1.0f, 1.0f, -1.0f, 1.0f };//Top Left
+	skybox[11].position = { 1.0f, 1.0f, 1.0f, 1.0f };//Top Right
+
+	//Back
+	skybox[12].position = { 1.0f, -1.0f, 1.0f, 1.0f };//Bottom Left
+	skybox[13].position = { 1.0f, 1.0f, 1.0f, 1.0f };//Top Left
+	skybox[14].position = { -1.0f, -1.0f, 1.0f, 1.0f };//Bottom Right
+	skybox[15].position = { -1.0f, -1.0f, 1.0f, 1.0f };//Bottom Right
+	skybox[16].position = { 1.0f, 1.0f, 1.0f, 1.0f };//Top Left
+	skybox[17].position = { -1.0f, 1.0f, 1.0f, 1.0f };//Top Right
+
+	//Left
+	skybox[18].position = { -1.0f, -1.0f, 1.0f, 1.0f };//Bottom Left
+	skybox[19].position = { -1.0f, 1.0f, 1.0f, 1.0f };//Top Left
+	skybox[20].position = { -1.0f, -1.0f, -1.0f, 1.0f };//Bottom Right
+	skybox[21].position = { -1.0f, -1.0f, -1.0f, 1.0f };//Bottom Right
+	skybox[22].position = { -1.0f, 1.0f, 1.0f, 1.0f };//Top Left
+	skybox[23].position = { -1.0f, 1.0f, -1.0f, 1.0f };//Top Right
+
+	//Top
+	skybox[24].position = { -1.0f, 1.0f, -1.0f, 1.0f };//Bottom Left
+	skybox[25].position = { -1.0f, 1.0f, 1.0f, 1.0f };//Top Left
+	skybox[26].position = { 1.0f, 1.0f, -1.0f, 1.0f };//Bottom Right
+	skybox[27].position = { 1.0f, 1.0f, -1.0f, 1.0f };//Bottom Right
+	skybox[28].position = { -1.0f, 1.0f, 1.0f, 1.0f };//Top Left
+	skybox[29].position = { 1.0f, 1.0f, 1.0f, 1.0f };//Top Right
+
+	//Bottom
+	skybox[30].position = { -1.0f, -1.0f, 1.0f, 1.0f };//Bottom Left
+	skybox[31].position = { -1.0f, -1.0f, -1.0f, 1.0f };//Top Left
+	skybox[32].position = { 1.0f, -1.0f, 1.0f, 1.0f };//Bottom Right
+	skybox[33].position = { 1.0f, -1.0f, 1.0f, 1.0f };//Bottom Right
+	skybox[34].position = { -1.0f, -1.0f, -1.0f, 1.0f };//Top Left
+	skybox[35].position = { 1.0f, -1.0f, -1.0f, 1.0f };//Top Right
+
+	numSkyboxVertices = 36;
+
+	for (int i = 0; i < numSkyboxVertices; i++)
+	{
+		skybox[i].texture.x = 0.0f;
+		skybox[i].texture.y = 0.0f;
+		skybox[i].normal.x = 0.0f;
+		skybox[i].normal.y = 0.0f;
+		skybox[i].normal.z = 0.0f;
+	}
 }
 
 void CheckUserInput()
