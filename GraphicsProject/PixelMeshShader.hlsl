@@ -1,6 +1,6 @@
 
-Texture2D stoneHengeDiffuse : register(t0);
-TextureCube skybox : register(t1);
+Texture2D Diffuse : register(t0);
+//TextureCube skybox : register(t1);
 SamplerState samLinear : register(s0);
 
 struct OutputVertex
@@ -27,7 +27,11 @@ cbuffer PSConstantBuffer : register(b1)
 
 float4 main(OutputVertex inputPixel) : SV_TARGET
 {
-    //return vSpotLightDir;
+    //float3 localPixelPos;
+    //localPixelPos.x = inputPixel.localPos.x;
+    //localPixelPos.y = inputPixel.localPos.y;
+    //localPixelPos.z = inputPixel.localPos.z;
+    //return skybox.Sample(samLinear, localPixelPos);
 
     float4 finalColor = 0;
     float4 directionLightColor = 0;
@@ -60,7 +64,7 @@ float4 main(OutputVertex inputPixel) : SV_TARGET
     directionLightColor.a = 1.0f;
 
     finalColor = directionLightColor + pointLightColor + spotLightColor;
-    finalColor *= stoneHengeDiffuse.Sample(samLinear, inputPixel.tex);
+    finalColor *= Diffuse.Sample(samLinear, inputPixel.tex);
     
 	return finalColor;
 }

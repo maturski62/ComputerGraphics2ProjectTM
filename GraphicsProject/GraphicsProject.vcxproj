@@ -167,6 +167,7 @@
     </Link>
   </ItemDefinitionGroup>
   <ItemGroup>
+    <ClInclude Include="CameraMovement.h" />
     <ClInclude Include="Colors.h" />
     <ClInclude Include="DDSTextureLoader.h" />
     <ClInclude Include="framework.h" />

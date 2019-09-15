@@ -5,15 +5,13 @@
 #include "GraphicsProject.h"
 #include "Colors.h"
 #include "DDSTextureLoader.h"
-#include <iostream>
+#include "CameraMovement.h"
 #include <vector>
 #include <fstream>
 
 #include <d3d11.h>
 #pragma comment(lib, "d3d11.lib")
 
-#include <DirectXMath.h>
-using namespace DirectX;
 using namespace std;
 
 //Shaders
@@ -50,20 +48,6 @@ struct SimpleMesh
 	vector<int> indicesList;
 };
 
-//Camera
-XMVECTOR camera;
-short deltaWheel;
-float FOVDivider = 2.0f;
-float cameraX = 0.0f;
-float cameraY = 5.0f;
-float cameraZ = -20.0f;
-float cameraRotX = 0.0f;
-float cameraRotY = 0.0f;
-POINT cursorPoint;
-POINT prevCursorPoint;
-float screenWidth;
-float screenHeight;
-
 //Models
 MyVertex* stoneHenge = new MyVertex[ARRAYSIZE(StoneHenge_data)];
 unsigned int stoneHengeIndices[ARRAYSIZE(StoneHenge_indicies)];
@@ -74,8 +58,13 @@ unsigned int numIndices = 0;
 MyVertex* waterPlane = new MyVertex[2500];
 unsigned int waterPlaneIndicesArray[726];
 unsigned int numWaterVertices = 0;
-MyVertex* skybox = new MyVertex[36];
+MyVertex* skybox = new MyVertex[24];
+unsigned int skyboxIndices[36];
 unsigned int numSkyboxVertices = 0;
+
+//Screen Varibales
+float screenWidth;
+float screenHeight;
 
 //Wave Variables
 XMFLOAT4 waveTime;
@@ -116,6 +105,7 @@ ID3D11Buffer* cubeIndicesBuffer;
 ID3D11Buffer* waterVertexBuffer;
 //Skybox
 ID3D11Buffer* skyBoxVertexBuffer;
+ID3D11Buffer* skyBoxIndicesBuffer;
 ID3D11InputLayout* vertexMeshLayout;
 ID3D11VertexShader* vertexMeshShader;
 ID3D11PixelShader* pixelMeshShader;
@@ -428,6 +418,11 @@ BOOL InitInstance(HINSTANCE hInstance, int nCmdShow)
 	bDesc.Usage = D3D11_USAGE_IMMUTABLE;
 	subData.pSysMem = skybox;
 	hr = myDevice->CreateBuffer(&bDesc, &subData, &skyBoxVertexBuffer);
+	//index buffer mesh
+	bDesc.BindFlags = D3D11_BIND_INDEX_BUFFER;
+	bDesc.ByteWidth = sizeof(unsigned int) * ARRAYSIZE(skyboxIndices);
+	subData.pSysMem = skyboxIndices;
+	hr = myDevice->CreateBuffer(&bDesc, &subData, &skyBoxIndicesBuffer);
 
 	//Load new mesh shader
 	hr = myDevice->CreateVertexShader(VertexMeshShader, sizeof(VertexMeshShader), nullptr, &vertexMeshShader);
@@ -473,9 +468,6 @@ BOOL InitInstance(HINSTANCE hInstance, int nCmdShow)
 	sampDesc.MaxLOD = D3D11_FLOAT32_MAX;
 	hr = myDevice->CreateSamplerState(&sampDesc, &samplerLinear);
 
-	//Set Camera Variables
-	camera = { cameraX, cameraY, cameraZ, 1.0f };
-
 	return TRUE;
 }
 
@@ -495,7 +487,7 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
 	{
 	case WM_MOUSEWHEEL:
 		deltaWheel = GET_WHEEL_DELTA_WPARAM(wParam);
-		CheckUserInput();
+		UpdateFOV();
 		break;
 	case WM_COMMAND:
 	{
@@ -559,14 +551,16 @@ void Render()
 
 	//Check for user input
 	CheckUserInput();
+	CheckKeyInputs();
+	//UpdateCamera();
+	//UpdateFOV();
 
 	//world
 	XMMATRIX temp = XMMatrixIdentity();
 	temp = XMMatrixTranslation(0.0f, 0.0f, 0.0f);
 	XMStoreFloat4x4(&myMatrices.worldMatrix, temp);
 	//view
-	temp = XMMatrixLookAtLH(camera, { cameraX, cameraY, cameraZ + 1.0f  }, { 0.0f, 1.0f, 0.0f });
-	XMStoreFloat4x4(&myMatrices.viewMatrix, temp);
+	XMStoreFloat4x4(&myMatrices.viewMatrix, camView);
 	//projection
 	temp = XMMatrixPerspectiveFovLH(3.14 / FOVDivider, aspectRatio, nearPlane, farPlane);
 	XMStoreFloat4x4(&myMatrices.projMatrix, temp);
@@ -604,11 +598,19 @@ void Render()
 	UINT meshStrides[] = { sizeof(MyVertex) };
 	UINT meshOffsets[] = { 0 };
 
-
+	//Draw Skybox
+	ID3D11Buffer* tempMeshVertexBuffer = skyBoxVertexBuffer;
+	//myDeviceContext->IASetVertexBuffers(0, 1, &tempMeshVertexBuffer, meshStrides, meshOffsets);
+	//myDeviceContext->IASetIndexBuffer(skyBoxIndicesBuffer, DXGI_FORMAT_R32_UINT, 0);
+	//myDeviceContext->PSSetShaderResources(0, 1, &skyboxTex);
+	//XMMATRIX skyboxMatrix = XMMatrixTranslation(cameraX, cameraY, cameraZ);
+	//XMStoreFloat4x4(&myMatrices.worldMatrix, skyboxMatrix);
+	//UploadToVideoCard();
+	//myDeviceContext->DrawIndexed(36, 0, 0);
 	myDeviceContext->ClearDepthStencilView(zBufferView, D3D11_CLEAR_DEPTH, 1, 0);
 
 	//Draw Stonehenge
-	ID3D11Buffer* tempMeshVertexBuffer = stonehengeVertexBuffer;
+	tempMeshVertexBuffer = stonehengeVertexBuffer;
 	myDeviceContext->IASetVertexBuffers(0, 1, &tempMeshVertexBuffer, meshStrides, meshOffsets);
 	myDeviceContext->IASetIndexBuffer(stonehengeIndicesBuffer, DXGI_FORMAT_R32_UINT, 0);
 	myDeviceContext->PSSetShaderResources(0, 1, &stonehengeTex);
@@ -672,6 +674,7 @@ void ReleaseInterfaces()
 	cubeIndicesBuffer->Release();
 	waterVertexBuffer->Release();
 	skyBoxVertexBuffer->Release();
+	skyBoxIndicesBuffer->Release();
 	constantBuffer->Release();
 	myDeviceContext->Release();
 	mySwapChain->Release();
@@ -821,51 +824,39 @@ void CreateSkyBox()
 	skybox[0].position = { -1.0f, -1.0f, -1.0f, 1.0f };//Bottom Left
 	skybox[1].position = { -1.0f, 1.0f, -1.0f, 1.0f };//Top Left
 	skybox[2].position = { 1.0f, -1.0f, -1.0f, 1.0f };//Bottom Right
-	skybox[3].position = { 1.0f, -1.0f, -1.0f, 1.0f };//Bottom Right
-	skybox[4].position = { -1.0f, 1.0f, -1.0f, 1.0f };//Top Left
-	skybox[5].position = { 1.0f, 1.0f, -1.0f, 1.0f };//Top Right
+	skybox[3].position = { 1.0f, 1.0f, -1.0f, 1.0f };//Top Right
 
 	//Right
-	skybox[6].position = { 1.0f, -1.0f, -1.0f, 1.0f };//Bottom Left
-	skybox[7].position = { 1.0f, 1.0f, -1.0f, 1.0f };//Top Left
-	skybox[8].position = { 1.0f, -1.0f, 1.0f, 1.0f };//Bottom Right
-	skybox[9].position = { 1.0f, -1.0f, 1.0f, 1.0f };//Bottom Right
-	skybox[10].position = { 1.0f, 1.0f, -1.0f, 1.0f };//Top Left
-	skybox[11].position = { 1.0f, 1.0f, 1.0f, 1.0f };//Top Right
+	skybox[4].position = { 1.0f, -1.0f, -1.0f, 1.0f };//Bottom Left
+	skybox[5].position = { 1.0f, 1.0f, -1.0f, 1.0f };//Top Left
+	skybox[6].position = { 1.0f, -1.0f, 1.0f, 1.0f };//Bottom Right
+	skybox[7].position = { 1.0f, 1.0f, 1.0f, 1.0f };//Top Right
 
 	//Back
-	skybox[12].position = { 1.0f, -1.0f, 1.0f, 1.0f };//Bottom Left
-	skybox[13].position = { 1.0f, 1.0f, 1.0f, 1.0f };//Top Left
-	skybox[14].position = { -1.0f, -1.0f, 1.0f, 1.0f };//Bottom Right
-	skybox[15].position = { -1.0f, -1.0f, 1.0f, 1.0f };//Bottom Right
-	skybox[16].position = { 1.0f, 1.0f, 1.0f, 1.0f };//Top Left
-	skybox[17].position = { -1.0f, 1.0f, 1.0f, 1.0f };//Top Right
+	skybox[8].position = { 1.0f, -1.0f, 1.0f, 1.0f };//Bottom Left
+	skybox[9].position = { 1.0f, 1.0f, 1.0f, 1.0f };//Top Left
+	skybox[10].position = { -1.0f, -1.0f, 1.0f, 1.0f };//Bottom Right
+	skybox[11].position = { -1.0f, 1.0f, 1.0f, 1.0f };//Top Right
 
 	//Left
-	skybox[18].position = { -1.0f, -1.0f, 1.0f, 1.0f };//Bottom Left
-	skybox[19].position = { -1.0f, 1.0f, 1.0f, 1.0f };//Top Left
-	skybox[20].position = { -1.0f, -1.0f, -1.0f, 1.0f };//Bottom Right
-	skybox[21].position = { -1.0f, -1.0f, -1.0f, 1.0f };//Bottom Right
-	skybox[22].position = { -1.0f, 1.0f, 1.0f, 1.0f };//Top Left
-	skybox[23].position = { -1.0f, 1.0f, -1.0f, 1.0f };//Top Right
+	skybox[12].position = { -1.0f, -1.0f, 1.0f, 1.0f };//Bottom Left
+	skybox[13].position = { -1.0f, 1.0f, 1.0f, 1.0f };//Top Left
+	skybox[14].position = { -1.0f, -1.0f, -1.0f, 1.0f };//Bottom Right
+	skybox[15].position = { -1.0f, 1.0f, -1.0f, 1.0f };//Top Right
 
 	//Top
-	skybox[24].position = { -1.0f, 1.0f, -1.0f, 1.0f };//Bottom Left
-	skybox[25].position = { -1.0f, 1.0f, 1.0f, 1.0f };//Top Left
-	skybox[26].position = { 1.0f, 1.0f, -1.0f, 1.0f };//Bottom Right
-	skybox[27].position = { 1.0f, 1.0f, -1.0f, 1.0f };//Bottom Right
-	skybox[28].position = { -1.0f, 1.0f, 1.0f, 1.0f };//Top Left
-	skybox[29].position = { 1.0f, 1.0f, 1.0f, 1.0f };//Top Right
+	skybox[16].position = { -1.0f, 1.0f, -1.0f, 1.0f };//Bottom Left
+	skybox[17].position = { -1.0f, 1.0f, 1.0f, 1.0f };//Top Left
+	skybox[18].position = { 1.0f, 1.0f, -1.0f, 1.0f };//Bottom Right
+	skybox[19].position = { 1.0f, 1.0f, 1.0f, 1.0f };//Top Right
 
 	//Bottom
-	skybox[30].position = { -1.0f, -1.0f, 1.0f, 1.0f };//Bottom Left
-	skybox[31].position = { -1.0f, -1.0f, -1.0f, 1.0f };//Top Left
-	skybox[32].position = { 1.0f, -1.0f, 1.0f, 1.0f };//Bottom Right
-	skybox[33].position = { 1.0f, -1.0f, 1.0f, 1.0f };//Bottom Right
-	skybox[34].position = { -1.0f, -1.0f, -1.0f, 1.0f };//Top Left
-	skybox[35].position = { 1.0f, -1.0f, -1.0f, 1.0f };//Top Right
+	skybox[20].position = { -1.0f, -1.0f, 1.0f, 1.0f };//Bottom Left
+	skybox[21].position = { -1.0f, -1.0f, -1.0f, 1.0f };//Top Left
+	skybox[22].position = { 1.0f, -1.0f, 1.0f, 1.0f };//Bottom Right
+	skybox[23].position = { 1.0f, -1.0f, -1.0f, 1.0f };//Top Right
 
-	numSkyboxVertices = 36;
+	numSkyboxVertices = 24;
 
 	for (int i = 0; i < numSkyboxVertices; i++)
 	{
@@ -874,6 +865,23 @@ void CreateSkyBox()
 		skybox[i].normal.x = 0.0f;
 		skybox[i].normal.y = 0.0f;
 		skybox[i].normal.z = 0.0f;
+	}
+
+	int index = 1;
+
+	for (int i = 0; i < 36; i += 6)
+	{
+		skyboxIndices[i] = index;
+		index++;
+		skyboxIndices[i + 1] = index;
+		index++;
+		skyboxIndices[i + 2] = index;
+		skyboxIndices[i + 3] = index;
+		index--;
+		skyboxIndices[i + 4] = index;
+		index += 2;
+		skyboxIndices[i + 5] = index;
+		index++;
 	}
 }
 
@@ -913,96 +921,6 @@ void CheckUserInput()
 			nearPlane -= 1.0f;
 		}
 	}
-
-	//Adjust the Camera
-	if (GetAsyncKeyState('W'))
-	{
-		camera = { cameraX, cameraY, cameraZ += 0.5f };
-	}
-	else if(GetAsyncKeyState('S'))
-	{
-		camera = { cameraX, cameraY, cameraZ -= 0.5f };
-	}
-	if (GetAsyncKeyState('A'))
-	{
-		camera = { cameraX -= 0.5f, cameraY, cameraZ };
-	}
-	else if(GetAsyncKeyState('D'))
-	{
-		camera = { cameraX += 0.5f, cameraY, cameraZ };
-	}
-	if (GetAsyncKeyState(VK_UP))
-	{
-		camera = { cameraX, cameraY += 0.5f, cameraZ };
-	}
-	else if (GetAsyncKeyState(VK_DOWN))
-	{
-		camera = { cameraX, cameraY -= 0.5f, cameraZ };
-	}
-
-	//GetCursorPos(&cursorPoint);
-	//
-	//if (prevCursorPoint.x != cursorPoint.x && prevCursorPoint.y != cursorPoint.y)
-	//{
-	//	if (cursorPoint.x < prevCursorPoint.x)
-	//	{
-	//		cameraRotX -= 0.5;
-	//	}
-	//	else if (cursorPoint.x > prevCursorPoint.x)
-	//	{
-	//		cameraRotX += 0.5;
-	//	}
-	//
-	//	if (cursorPoint.y < prevCursorPoint.y)
-	//	{
-	//		cameraRotY += 0.5;
-	//	}
-	//	else if (cursorPoint.y > prevCursorPoint.y)
-	//	{
-	//		cameraRotY -= 0.5;
-	//	}
-	//}
-	//
-	//prevCursorPoint = cursorPoint;
-
-	//FOV
-	//Reset normal FOV
-	if (deltaWheel > 0)
-	{
-		if (FOVDivider < 4.0f)
-		{
-			FOVDivider += 0.05f;
-		}
-	}
-	else if (deltaWheel < 0)
-	{
-		if (FOVDivider > 1.5)
-		{
-			FOVDivider -= 0.05f;
-		}
-	}
-	deltaWheel = 0;
-
-	if (GetAsyncKeyState('U') && GetAsyncKeyState('J') &0x1)
-	{
-		FOVDivider = 2.0f;
-	}
-	//Zoom in
-	//else if (GetAsyncKeyState('U'))
-	//{
-	//	if (FOVDivider < 4.0f)
-	//	{
-	//		FOVDivider += 0.01f;
-	//	}
-	//}
-	////Zoom out
-	//else if (GetAsyncKeyState('J'))
-	//{
-	//	if (FOVDivider > 1.5)
-	//	{
-	//		FOVDivider -= 0.01f;
-	//	}
-	//}
 }
 
 void LoadDotMesh(const char* meshFileName, SimpleMesh& mesh)
