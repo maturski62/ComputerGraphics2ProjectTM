@@ -31,9 +31,6 @@ ID3D11DeviceContext* myDeviceContext;
 ID3D11RenderTargetView* myRenderTargetView;
 D3D11_VIEWPORT myViewPort;
 float aspectRatio = 1;
-//Dynamic User Variables
-float nearPlane = 0.1f;
-float farPlane = 100.0f;
 
 struct MyVertex
 {
@@ -153,7 +150,6 @@ INT_PTR CALLBACK    About(HWND, UINT, WPARAM, LPARAM);
 void UploadToVideoCard();
 void Render();
 void ReleaseInterfaces();
-void CheckUserInput();
 void CreateStoneHenge();
 void CreateBarrels();
 void CreateWaterPlane();
@@ -550,10 +546,8 @@ void Render()
 	myDeviceContext->ClearRenderTargetView(myRenderTargetView, color);
 
 	//Check for user input
-	CheckUserInput();
+	UpdatePlanes();
 	CheckKeyInputs();
-	//UpdateCamera();
-	//UpdateFOV();
 
 	//world
 	XMMATRIX temp = XMMatrixIdentity();
@@ -882,44 +876,6 @@ void CreateSkyBox()
 		index += 2;
 		skyboxIndices[i + 5] = index;
 		index++;
-	}
-}
-
-void CheckUserInput()
-{
-	//Adjust the Near or Far Plane
-	//Increase Far Plane
-	if (GetAsyncKeyState('O'))
-	{
-		if (farPlane < 1000.0f) 
-		{
-			farPlane += 1.0f;
-		}
-	}
-	//Decrease Far Plane
-	if (GetAsyncKeyState('L'))
-	{
-		if (farPlane > nearPlane + 0.1f)
-		{
-			farPlane -= 1.0f;
-		}
-	}
-
-	//Increase Near Plane
-	if (GetAsyncKeyState('I'))
-	{
-		if (nearPlane < farPlane - 0.5f )
-		{
-			nearPlane += 1.0f;
-		}
-	}
-	//Decrease Near Plane
-	if (GetAsyncKeyState('K'))
-	{
-		if (nearPlane > 0.5f)
-		{
-			nearPlane -= 1.0f;
-		}
 	}
 }
 

@@ -28,13 +28,10 @@ XMMATRIX camView;
 XMVECTOR camera = { 0.0f, 5.0f, -20.0f, 1.0f };
 short deltaWheel;
 float FOVDivider = 2.0f;
-float cameraX = 0.0f;
-float cameraY = 5.0f;
-float cameraZ = -20.0f;
-float cameraRotX = 0.0f;
-float cameraRotY = 0.0f;
 POINT cursorPoint;
 POINT prevCursorPoint;
+float nearPlane = 0.1f;
+float farPlane = 100.0f;
 
 XMMATRIX GetViewMatrix()
 {
@@ -113,76 +110,6 @@ void CheckKeyInputs()
 
 }
 
-void UpdateCamera()
-{
-	//Adjust the Camera Position
-	if (GetAsyncKeyState('W'))
-	{
-		cameraZ += 0.5f;
-		camera = { cameraX, cameraY, cameraZ };
-	}
-	else if (GetAsyncKeyState('S'))
-	{
-		cameraZ -= 0.5f;
-		camera = { cameraX, cameraY, cameraZ };
-	}
-	if (GetAsyncKeyState('A'))
-	{
-		cameraX -= 0.5f;
-		camera = { cameraX, cameraY, cameraZ };
-	}
-	else if (GetAsyncKeyState('D'))
-	{
-		cameraX += 0.5f;
-		camera = { cameraX, cameraY, cameraZ };
-	}
-	if (GetAsyncKeyState(VK_SPACE))
-	{
-		cameraY += 0.5f;
-		camera = { cameraX, cameraY, cameraZ };
-	}
-	else if (GetAsyncKeyState(VK_LSHIFT))
-	{
-		cameraY -= 0.5f;
-		camera = { cameraX, cameraY, cameraZ };
-	}
-
-
-	//GetCursorPos(&cursorPoint);
-	//
-	//if (prevCursorPoint.x != cursorPoint.x && prevCursorPoint.y != cursorPoint.y)
-	//{
-	//	float deltaX = cursorPoint.x - prevCursorPoint.x;
-	//	float deltaY = cursorPoint.y - prevCursorPoint.y;
-	//
-	//	XMMATRIX RotationX = XMMatrixRotationAxis(XMVectorSet(1.0f, 0.0f, 0.0f, 0.0f), -deltaX * 0.001f);
-	//	XMMATRIX RotationY = XMMatrixRotationAxis(XMVectorSet(0.0f, 1.0f, 0.0f, 0.0f), -deltaY * 0.001f);
-	//
-	//	//if (cursorPoint.x < prevCursorPoint.x)
-	//	//{
-	//	//	cameraRotX -= 0.5;
-	//	//}
-	//	//else if (cursorPoint.x > prevCursorPoint.x)
-	//	//{
-	//	//	cameraRotX += 0.5;
-	//	//}
-	//	//
-	//	//if (cursorPoint.y < prevCursorPoint.y)
-	//	//{
-	//	//	cameraRotY += 0.5;
-	//	//}
-	//	//else if (cursorPoint.y > prevCursorPoint.y)
-	//	//{
-	//	//	cameraRotY -= 0.5;
-	//	//}
-	//}
-	//
-	//prevCursorPoint = cursorPoint;
-
-	//Reset the view matrix to the updated values
-	camView = XMMatrixLookAtLH(camera, { cameraX, cameraY, cameraZ + 1.0f }, { 0.0f, 1.0f, 0.0f });
-}
-
 void UpdateFOV()
 {
 	//FOV
@@ -206,5 +133,43 @@ void UpdateFOV()
 	if (GetAsyncKeyState('R') & 0x1)
 	{
 		FOVDivider = 2.0f;
+	}
+}
+
+void UpdatePlanes()
+{
+	//Adjust the Near or Far Plane
+	//Increase Far Plane
+	if (GetAsyncKeyState('O'))
+	{
+		if (farPlane < 1000.0f)
+		{
+			farPlane += 1.0f;
+		}
+	}
+	//Decrease Far Plane
+	if (GetAsyncKeyState('L'))
+	{
+		if (farPlane > nearPlane + 0.1f)
+		{
+			farPlane -= 1.0f;
+		}
+	}
+
+	//Increase Near Plane
+	if (GetAsyncKeyState('I'))
+	{
+		if (nearPlane < farPlane - 0.5f)
+		{
+			nearPlane += 1.0f;
+		}
+	}
+	//Decrease Near Plane
+	if (GetAsyncKeyState('K'))
+	{
+		if (nearPlane > 0.5f)
+		{
+			nearPlane -= 1.0f;
+		}
 	}
 }
