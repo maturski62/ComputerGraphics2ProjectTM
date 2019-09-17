@@ -16,6 +16,7 @@ using namespace std;
 
 //Shaders
 #include "VertexMeshShader.csh"
+#include "WaterShader.csh"
 #include "PixelMeshShader.csh"
 
 //Mesh Files
@@ -84,7 +85,7 @@ ID3D11Buffer* lightConstantBuffer;
 ID3D11SamplerState* samplerLinear;
 ID3D11ShaderResourceView* stonehengeTex;
 ID3D11ShaderResourceView* barrelsTex;
-ID3D11ShaderResourceView* cubeTex;
+ID3D11ShaderResourceView* axeTex;
 ID3D11ShaderResourceView* waterTex;
 ID3D11ShaderResourceView* skyboxTex;
 
@@ -96,8 +97,8 @@ ID3D11Buffer* stonehengeIndicesBuffer;
 ID3D11Buffer* barrelsVertexBuffer;
 ID3D11Buffer* barrelsIndicesBuffer;
 //Cube
-ID3D11Buffer* cubeVertexBuffer;
-ID3D11Buffer* cubeIndicesBuffer;
+ID3D11Buffer* axeVertexBuffer;
+ID3D11Buffer* axeIndicesBuffer;
 //Water
 ID3D11Buffer* waterVertexBuffer;
 //Skybox
@@ -105,6 +106,7 @@ ID3D11Buffer* skyBoxVertexBuffer;
 ID3D11Buffer* skyBoxIndicesBuffer;
 ID3D11InputLayout* vertexMeshLayout;
 ID3D11VertexShader* vertexMeshShader;
+ID3D11VertexShader* waterShader;
 ID3D11PixelShader* pixelMeshShader;
 
 //ZBuffer for Depth
@@ -326,7 +328,7 @@ BOOL InitInstance(HINSTANCE hInstance, int nCmdShow)
 	hr = myDevice->CreateBuffer(&bDesc, nullptr, &lightConstantBuffer);
 
 	//Load Mesh Data
-	const char* meshFilename = "Assets/cube.mesh";
+	const char* meshFilename = "Assets/axe.mesh";
 	SimpleMesh simpleMesh;
 	LoadDotMesh(meshFilename, simpleMesh);
 	numVertices = simpleMesh.vertexList.size();
@@ -341,7 +343,7 @@ BOOL InitInstance(HINSTANCE hInstance, int nCmdShow)
 	{
 		hr = CreateDDSTextureFromFile(myDevice, L"Assets/stoneHenge.dds", nullptr, &stonehengeTex);
 		hr = CreateDDSTextureFromFile(myDevice, L"Assets/barrelTexture.dds", nullptr, &barrelsTex);
-		hr = CreateDDSTextureFromFile(myDevice, L"Assets/Crate.dds", nullptr, &cubeTex);
+		hr = CreateDDSTextureFromFile(myDevice, L"Assets/axeTex.dds", nullptr, &axeTex);
 		hr = CreateDDSTextureFromFile(myDevice, L"Assets/water.dds", nullptr, &waterTex);
 		hr = CreateDDSTextureFromFile(myDevice, L"Assets/SkyboxOcean.dds", nullptr, &skyboxTex);
 	}
@@ -349,7 +351,7 @@ BOOL InitInstance(HINSTANCE hInstance, int nCmdShow)
 	//Time for the wave
 	waveTime = { 0.0f, 0.0f, 0.0f, 0.0f };
 
-	//Load Cube
+	//Load Axe
 	D3D11_BUFFER_DESC bd = {};
 	bd.Usage = D3D11_USAGE_DEFAULT;
 	bd.ByteWidth = sizeof(MyVertex) * simpleMesh.vertexList.size();
@@ -357,14 +359,14 @@ BOOL InitInstance(HINSTANCE hInstance, int nCmdShow)
 	bd.CPUAccessFlags = 0;
 	D3D11_SUBRESOURCE_DATA InitData = {};
 	InitData.pSysMem = simpleMesh.vertexList.data();
-	hr = myDevice->CreateBuffer(&bd, &InitData, &cubeVertexBuffer);
+	hr = myDevice->CreateBuffer(&bd, &InitData, &axeVertexBuffer);
 	//IndexBuffer
 	bd.Usage = D3D11_USAGE_DEFAULT;
-	bd.ByteWidth = sizeof(int) * simpleMesh.indicesList.size(); // 36 vertices needed for 12 triangles in a triangle list
+	bd.ByteWidth = sizeof(int) * simpleMesh.indicesList.size();
 	bd.BindFlags = D3D11_BIND_INDEX_BUFFER;
 	bd.CPUAccessFlags = 0;
 	InitData.pSysMem = simpleMesh.indicesList.data();
-	hr = myDevice->CreateBuffer(&bd, &InitData, &cubeIndicesBuffer);
+	hr = myDevice->CreateBuffer(&bd, &InitData, &axeIndicesBuffer);
 
 	//Load Stonehenge
 	bDesc.BindFlags = D3D11_BIND_VERTEX_BUFFER;
@@ -415,14 +417,10 @@ BOOL InitInstance(HINSTANCE hInstance, int nCmdShow)
 	bDesc.Usage = D3D11_USAGE_IMMUTABLE;
 	subData.pSysMem = skybox;
 	hr = myDevice->CreateBuffer(&bDesc, &subData, &skyBoxVertexBuffer);
-	////index buffer mesh
-	//bDesc.BindFlags = D3D11_BIND_INDEX_BUFFER;
-	//bDesc.ByteWidth = sizeof(unsigned int) * ARRAYSIZE(skyboxIndices);
-	//subData.pSysMem = skyboxIndices;
-	//hr = myDevice->CreateBuffer(&bDesc, &subData, &skyBoxIndicesBuffer);
 
 	//Load new mesh shader
 	hr = myDevice->CreateVertexShader(VertexMeshShader, sizeof(VertexMeshShader), nullptr, &vertexMeshShader);
+	hr = myDevice->CreateVertexShader(WaterShader, sizeof(WaterShader), nullptr, &waterShader);
 	hr = myDevice->CreatePixelShader(PixelMeshShader, sizeof(PixelMeshShader), nullptr, &pixelMeshShader);
 
 	//Make matching input layout for mesh vertex
@@ -435,6 +433,7 @@ BOOL InitInstance(HINSTANCE hInstance, int nCmdShow)
 	};
 
 	hr = myDevice->CreateInputLayout(meshInputDesc, ARRAYSIZE(meshInputDesc), VertexMeshShader, sizeof(VertexMeshShader), &vertexMeshLayout);
+	hr = myDevice->CreateInputLayout(meshInputDesc, ARRAYSIZE(meshInputDesc), WaterShader, sizeof(WaterShader), &vertexMeshLayout);
 
 	//Create Z Buffer and View
 	D3D11_TEXTURE2D_DESC zDesc;
@@ -627,18 +626,19 @@ void Render()
 	myDeviceContext->DrawIndexed(ARRAYSIZE(barrels_indicies), 0, 0);
 
 	//Draw Cube from .mesh file
-	tempMeshVertexBuffer = cubeVertexBuffer;
+	tempMeshVertexBuffer = axeVertexBuffer;
 	myDeviceContext->IASetVertexBuffers(0, 1, &tempMeshVertexBuffer, meshStrides, meshOffsets);
-	myDeviceContext->IASetIndexBuffer(cubeIndicesBuffer, DXGI_FORMAT_R32_UINT, 0);
-	myDeviceContext->PSSetShaderResources(0, 1, &cubeTex);
-	XMMATRIX cubeMatrix = XMMatrixTranslation(-5.0f, 0.0f, 0.0f);
-	XMStoreFloat4x4(&myMatrices.worldMatrix, cubeMatrix);
+	myDeviceContext->IASetIndexBuffer(axeIndicesBuffer, DXGI_FORMAT_R32_UINT, 0);
+	myDeviceContext->PSSetShaderResources(0, 1, &axeTex);
+	XMMATRIX axeMatrix = XMMatrixTranslation(-5.0f, 0.0f, 0.0f);
+	XMStoreFloat4x4(&myMatrices.worldMatrix, axeMatrix);
 	UploadToVideoCard();
 	myDeviceContext->DrawIndexed(numIndices, 0, 0);
 
 	//Draw Water
 	tempMeshVertexBuffer = waterVertexBuffer;
 	myDeviceContext->IASetVertexBuffers(0, 1, &tempMeshVertexBuffer, meshStrides, meshOffsets);
+	myDeviceContext->VSSetShader(waterShader, nullptr, 0);
 	myDeviceContext->PSSetShaderResources(0, 1, &waterTex);
 	XMMATRIX waterMatrix = XMMatrixTranslation(-50.0f, -1.0f, -50.0f);
 	XMStoreFloat4x4(&myMatrices.worldMatrix, waterMatrix);
@@ -652,7 +652,7 @@ void ReleaseInterfaces()
 {
 	stonehengeTex->Release();
 	barrelsTex->Release();
-	cubeTex->Release();
+	axeTex->Release();
 	waterTex->Release();
 	skyboxTex->Release();
 	lightConstantBuffer->Release();
@@ -661,17 +661,17 @@ void ReleaseInterfaces()
 	zBufferView->Release();
 	vertexMeshLayout->Release();
 	vertexMeshShader->Release();
+	waterShader->Release();
 	pixelMeshShader->Release();
 	myRenderTargetView->Release();
 	stonehengeVertexBuffer->Release();
 	stonehengeIndicesBuffer->Release();
 	barrelsVertexBuffer->Release();
 	barrelsIndicesBuffer->Release();
-	cubeVertexBuffer->Release();
-	cubeIndicesBuffer->Release();
+	axeVertexBuffer->Release();
+	axeIndicesBuffer->Release();
 	waterVertexBuffer->Release();
 	skyBoxVertexBuffer->Release();
-	//skyBoxIndicesBuffer->Release();
 	constantBuffer->Release();
 	myDeviceContext->Release();
 	mySwapChain->Release();
@@ -902,12 +902,11 @@ void LoadDotMesh(const char* meshFileName, SimpleMesh& mesh)
 
 void MakeLights()
 {
-	//Direction Light 
-	static float lightAngle = -0.577f; lightAngle += 0.01;
-	lightDir = { -0.577f, 0.577f, -0.577f, 1.0f };
-	static float dirLightAngle = 0.0f; dirLightAngle += 0.01f;
-	XMMATRIX dirLightRotation = XMMatrixRotationY(dirLightAngle);
-	lightDir = XMVector4Transform(lightDir, dirLightRotation);
+	//Direction Light
+	lightDir = { 1.0f, 0.9f, 0.0f, 1.0f };
+	//static float dirLightAngle = 0.0f; dirLightAngle += 0.005f;
+	//XMMATRIX dirLightRotation = XMMatrixRotationZ(-dirLightAngle);
+	//lightDir = XMVector4Transform(lightDir, dirLightRotation);
 	XMStoreFloat4(&myLights.vLightDir, lightDir);
 	lightColor = { 0.5f, 0.5f, 0.5f, 1.0f };
 	XMStoreFloat4(&myLights.vLightColor, lightColor);

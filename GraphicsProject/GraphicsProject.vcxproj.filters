@@ -64,5 +64,6 @@
   <ItemGroup>
     <FxCompile Include="PixelMeshShader.hlsl" />
     <FxCompile Include="VertexMeshShader.hlsl" />
+    <FxCompile Include="WaterShader.hlsl" />
   </ItemGroup>
 </Project>

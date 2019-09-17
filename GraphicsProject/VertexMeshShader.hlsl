@@ -38,12 +38,6 @@ OutputVertex main(InputVertex input)
     output.tex = input.tex;
 	output.nrm = input.nrm;
 
-    //float amplitude = 1.0f; //Wave height
-    //float frequency = 0.1f; //Distance between wave peaks
-    //float2 planePos = float2(output.pos.x, output.pos.z);
-    //float dotProduct = dot(float2(1, 1), planePos);
-    //output.pos.y += amplitude * sin((dotProduct * frequency) + waveTime.x);
-
 	// Do math here (shader intrinsics)
     output.localPos = output.pos;
     output.pos = mul(output.pos, worldMatrix);
