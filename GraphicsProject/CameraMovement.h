@@ -25,7 +25,6 @@ float speed = 0.5f;
 
 //Camera Variables
 XMMATRIX camView;
-XMVECTOR camera = { 0.0f, 5.0f, -20.0f, 1.0f };
 short deltaWheel;
 float FOVDivider = 2.0f;
 POINT cursorPoint;
@@ -94,6 +93,12 @@ void CheckKeyInputs()
 		moveUpDown -= speed;
 	}
 
+	//Reset Camera Zoom
+	if (GetAsyncKeyState('R') & 0x1)
+	{
+		FOVDivider = 2.0f;
+	}
+
 	GetCursorPos(&cursorPoint);
 	
 	if ((prevCursorPoint.x != cursorPoint.x) || (prevCursorPoint.y != cursorPoint.y))
@@ -119,7 +124,6 @@ void UpdateFOV()
 		{
 			FOVDivider += 0.05f;
 		}
-		deltaWheel = 0;
 	}
 	else if (deltaWheel < 0)
 	{
@@ -127,13 +131,8 @@ void UpdateFOV()
 		{
 			FOVDivider -= 0.05f;
 		}
-		deltaWheel = 0;
 	}
-
-	if (GetAsyncKeyState('R') & 0x1)
-	{
-		FOVDivider = 2.0f;
-	}
+	deltaWheel = 0;
 }
 
 void UpdatePlanes()

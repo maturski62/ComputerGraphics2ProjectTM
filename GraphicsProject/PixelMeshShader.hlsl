@@ -1,6 +1,6 @@
 
 Texture2D Diffuse : register(t0);
-//TextureCube skybox : register(t1);
+TextureCube skybox : register(t1);
 SamplerState samLinear : register(s0);
 
 struct OutputVertex
@@ -23,15 +23,19 @@ cbuffer PSConstantBuffer : register(b1)
     float4 vSpotLightDir;
     float4 vSpotLightColor;
     float4 vSpotLightConeRatio;
+    float4 drawingSkybox;
 }
 
 float4 main(OutputVertex inputPixel) : SV_TARGET
 {
-    //float3 localPixelPos;
-    //localPixelPos.x = inputPixel.localPos.x;
-    //localPixelPos.y = inputPixel.localPos.y;
-    //localPixelPos.z = inputPixel.localPos.z;
-    //return skybox.Sample(samLinear, localPixelPos);
+    if(drawingSkybox.x > 0)
+    {
+        float3 localPixelPos;
+        localPixelPos.x = inputPixel.localPos.x;
+        localPixelPos.y = inputPixel.localPos.y;
+        localPixelPos.z = inputPixel.localPos.z;
+        return skybox.Sample(samLinear, localPixelPos);
+    }
 
     float4 finalColor = 0;
     float4 directionLightColor = 0;

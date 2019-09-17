@@ -55,7 +55,7 @@ unsigned int numIndices = 0;
 MyVertex* waterPlane = new MyVertex[2500];
 unsigned int waterPlaneIndicesArray[726];
 unsigned int numWaterVertices = 0;
-MyVertex* skybox = new MyVertex[24];
+MyVertex* skybox = new MyVertex[36];
 unsigned int skyboxIndices[36];
 unsigned int numSkyboxVertices = 0;
 
@@ -132,6 +132,7 @@ struct Lights
 	XMFLOAT4 vSpotLightDir;
 	XMFLOAT4 vSpotLightColor;
 	XMFLOAT4 vSpotLightConeRatio;
+	XMFLOAT4 drawingSkybox;
 }myLights;
 
 #define MAX_LOADSTRING 100
@@ -342,7 +343,7 @@ BOOL InitInstance(HINSTANCE hInstance, int nCmdShow)
 		hr = CreateDDSTextureFromFile(myDevice, L"Assets/barrelTexture.dds", nullptr, &barrelsTex);
 		hr = CreateDDSTextureFromFile(myDevice, L"Assets/Crate.dds", nullptr, &cubeTex);
 		hr = CreateDDSTextureFromFile(myDevice, L"Assets/water.dds", nullptr, &waterTex);
-		hr = CreateDDSTextureFromFile(myDevice, L"Assets/Skybox.dds", nullptr, &skyboxTex);
+		hr = CreateDDSTextureFromFile(myDevice, L"Assets/SkyboxOcean.dds", nullptr, &skyboxTex);
 	}
 
 	//Time for the wave
@@ -359,7 +360,7 @@ BOOL InitInstance(HINSTANCE hInstance, int nCmdShow)
 	hr = myDevice->CreateBuffer(&bd, &InitData, &cubeVertexBuffer);
 	//IndexBuffer
 	bd.Usage = D3D11_USAGE_DEFAULT;
-	bd.ByteWidth = sizeof(int) * simpleMesh.indicesList.size();;        // 36 vertices needed for 12 triangles in a triangle list
+	bd.ByteWidth = sizeof(int) * simpleMesh.indicesList.size(); // 36 vertices needed for 12 triangles in a triangle list
 	bd.BindFlags = D3D11_BIND_INDEX_BUFFER;
 	bd.CPUAccessFlags = 0;
 	InitData.pSysMem = simpleMesh.indicesList.data();
@@ -414,11 +415,11 @@ BOOL InitInstance(HINSTANCE hInstance, int nCmdShow)
 	bDesc.Usage = D3D11_USAGE_IMMUTABLE;
 	subData.pSysMem = skybox;
 	hr = myDevice->CreateBuffer(&bDesc, &subData, &skyBoxVertexBuffer);
-	//index buffer mesh
-	bDesc.BindFlags = D3D11_BIND_INDEX_BUFFER;
-	bDesc.ByteWidth = sizeof(unsigned int) * ARRAYSIZE(skyboxIndices);
-	subData.pSysMem = skyboxIndices;
-	hr = myDevice->CreateBuffer(&bDesc, &subData, &skyBoxIndicesBuffer);
+	////index buffer mesh
+	//bDesc.BindFlags = D3D11_BIND_INDEX_BUFFER;
+	//bDesc.ByteWidth = sizeof(unsigned int) * ARRAYSIZE(skyboxIndices);
+	//subData.pSysMem = skyboxIndices;
+	//hr = myDevice->CreateBuffer(&bDesc, &subData, &skyBoxIndicesBuffer);
 
 	//Load new mesh shader
 	hr = myDevice->CreateVertexShader(VertexMeshShader, sizeof(VertexMeshShader), nullptr, &vertexMeshShader);
@@ -594,13 +595,14 @@ void Render()
 
 	//Draw Skybox
 	ID3D11Buffer* tempMeshVertexBuffer = skyBoxVertexBuffer;
-	//myDeviceContext->IASetVertexBuffers(0, 1, &tempMeshVertexBuffer, meshStrides, meshOffsets);
-	//myDeviceContext->IASetIndexBuffer(skyBoxIndicesBuffer, DXGI_FORMAT_R32_UINT, 0);
-	//myDeviceContext->PSSetShaderResources(0, 1, &skyboxTex);
-	//XMMATRIX skyboxMatrix = XMMatrixTranslation(cameraX, cameraY, cameraZ);
-	//XMStoreFloat4x4(&myMatrices.worldMatrix, skyboxMatrix);
-	//UploadToVideoCard();
-	//myDeviceContext->DrawIndexed(36, 0, 0);
+	myDeviceContext->IASetVertexBuffers(0, 1, &tempMeshVertexBuffer, meshStrides, meshOffsets);
+	myDeviceContext->IASetIndexBuffer(skyBoxIndicesBuffer, DXGI_FORMAT_R32_UINT, 0);
+	myDeviceContext->PSSetShaderResources(1, 1, &skyboxTex);
+	XMMATRIX skyboxMatrix = XMMatrixTranslation(XMVectorGetX(camPosition), XMVectorGetY(camPosition), XMVectorGetZ(camPosition));
+	XMStoreFloat4x4(&myMatrices.worldMatrix, skyboxMatrix);
+	XMStoreFloat4(&myLights.drawingSkybox, { 1.0f });
+	UploadToVideoCard();
+	myDeviceContext->Draw(numSkyboxVertices, 0);
 	myDeviceContext->ClearDepthStencilView(zBufferView, D3D11_CLEAR_DEPTH, 1, 0);
 
 	//Draw Stonehenge
@@ -610,6 +612,7 @@ void Render()
 	myDeviceContext->PSSetShaderResources(0, 1, &stonehengeTex);
 	XMMATRIX stoneHedge = XMMatrixIdentity();
 	XMStoreFloat4x4(&myMatrices.worldMatrix, stoneHedge);
+	XMStoreFloat4(&myLights.drawingSkybox, { -1.0f });
 	UploadToVideoCard();
 	myDeviceContext->DrawIndexed(ARRAYSIZE(StoneHenge_indicies), 0, 0);
 
@@ -668,7 +671,7 @@ void ReleaseInterfaces()
 	cubeIndicesBuffer->Release();
 	waterVertexBuffer->Release();
 	skyBoxVertexBuffer->Release();
-	skyBoxIndicesBuffer->Release();
+	//skyBoxIndicesBuffer->Release();
 	constantBuffer->Release();
 	myDeviceContext->Release();
 	mySwapChain->Release();
@@ -818,64 +821,57 @@ void CreateSkyBox()
 	skybox[0].position = { -1.0f, -1.0f, -1.0f, 1.0f };//Bottom Left
 	skybox[1].position = { -1.0f, 1.0f, -1.0f, 1.0f };//Top Left
 	skybox[2].position = { 1.0f, -1.0f, -1.0f, 1.0f };//Bottom Right
-	skybox[3].position = { 1.0f, 1.0f, -1.0f, 1.0f };//Top Right
+	skybox[3].position = { 1.0f, -1.0f, -1.0f, 1.0f };//Bottom Right
+	skybox[4].position = { -1.0f, 1.0f, -1.0f, 1.0f };//Top Left
+	skybox[5].position = { 1.0f, 1.0f, -1.0f, 1.0f };//Top Right
 
 	//Right
-	skybox[4].position = { 1.0f, -1.0f, -1.0f, 1.0f };//Bottom Left
-	skybox[5].position = { 1.0f, 1.0f, -1.0f, 1.0f };//Top Left
-	skybox[6].position = { 1.0f, -1.0f, 1.0f, 1.0f };//Bottom Right
-	skybox[7].position = { 1.0f, 1.0f, 1.0f, 1.0f };//Top Right
+	skybox[6].position = { 1.0f, -1.0f, -1.0f, 1.0f };//Bottom Left
+	skybox[7].position = { 1.0f, 1.0f, -1.0f, 1.0f };//Top Left
+	skybox[8].position = { 1.0f, -1.0f, 1.0f, 1.0f };//Bottom Right
+	skybox[9].position = { 1.0f, -1.0f, 1.0f, 1.0f };//Bottom Right
+	skybox[10].position = { 1.0f, 1.0f, -1.0f, 1.0f };//Top Left
+	skybox[11].position = { 1.0f, 1.0f, 1.0f, 1.0f };//Top Right
 
 	//Back
-	skybox[8].position = { 1.0f, -1.0f, 1.0f, 1.0f };//Bottom Left
-	skybox[9].position = { 1.0f, 1.0f, 1.0f, 1.0f };//Top Left
-	skybox[10].position = { -1.0f, -1.0f, 1.0f, 1.0f };//Bottom Right
-	skybox[11].position = { -1.0f, 1.0f, 1.0f, 1.0f };//Top Right
+	skybox[12].position = { 1.0f, -1.0f, 1.0f, 1.0f };//Bottom Left
+	skybox[13].position = { 1.0f, 1.0f, 1.0f, 1.0f };//Top Left
+	skybox[14].position = { -1.0f, -1.0f, 1.0f, 1.0f };//Bottom Right
+	skybox[15].position = { -1.0f, -1.0f, 1.0f, 1.0f };//Bottom Right
+	skybox[16].position = { 1.0f, 1.0f, 1.0f, 1.0f };//Top Left
+	skybox[17].position = { -1.0f, 1.0f, 1.0f, 1.0f };//Top Right
 
 	//Left
-	skybox[12].position = { -1.0f, -1.0f, 1.0f, 1.0f };//Bottom Left
-	skybox[13].position = { -1.0f, 1.0f, 1.0f, 1.0f };//Top Left
-	skybox[14].position = { -1.0f, -1.0f, -1.0f, 1.0f };//Bottom Right
-	skybox[15].position = { -1.0f, 1.0f, -1.0f, 1.0f };//Top Right
+	skybox[18].position = { -1.0f, -1.0f, 1.0f, 1.0f };//Bottom Left
+	skybox[19].position = { -1.0f, 1.0f, 1.0f, 1.0f };//Top Left
+	skybox[20].position = { -1.0f, -1.0f, -1.0f, 1.0f };//Bottom Right
+	skybox[21].position = { -1.0f, -1.0f, -1.0f, 1.0f };//Bottom Right
+	skybox[22].position = { -1.0f, 1.0f, 1.0f, 1.0f };//Top Left
+	skybox[23].position = { -1.0f, 1.0f, -1.0f, 1.0f };//Top Right
 
 	//Top
-	skybox[16].position = { -1.0f, 1.0f, -1.0f, 1.0f };//Bottom Left
-	skybox[17].position = { -1.0f, 1.0f, 1.0f, 1.0f };//Top Left
-	skybox[18].position = { 1.0f, 1.0f, -1.0f, 1.0f };//Bottom Right
-	skybox[19].position = { 1.0f, 1.0f, 1.0f, 1.0f };//Top Right
+	skybox[24].position = { -1.0f, 1.0f, -1.0f, 1.0f };//Bottom Left
+	skybox[25].position = { -1.0f, 1.0f, 1.0f, 1.0f };//Top Left
+	skybox[26].position = { 1.0f, 1.0f, -1.0f, 1.0f };//Bottom Right
+	skybox[27].position = { 1.0f, 1.0f, -1.0f, 1.0f };//Bottom Right
+	skybox[28].position = { -1.0f, 1.0f, 1.0f, 1.0f };//Top Left
+	skybox[29].position = { 1.0f, 1.0f, 1.0f, 1.0f };//Top Right
 
 	//Bottom
-	skybox[20].position = { -1.0f, -1.0f, 1.0f, 1.0f };//Bottom Left
-	skybox[21].position = { -1.0f, -1.0f, -1.0f, 1.0f };//Top Left
-	skybox[22].position = { 1.0f, -1.0f, 1.0f, 1.0f };//Bottom Right
-	skybox[23].position = { 1.0f, -1.0f, -1.0f, 1.0f };//Top Right
+	skybox[30].position = { -1.0f, -1.0f, 1.0f, 1.0f };//Bottom Left
+	skybox[31].position = { -1.0f, -1.0f, -1.0f, 1.0f };//Top Left
+	skybox[32].position = { 1.0f, -1.0f, 1.0f, 1.0f };//Bottom Right
+	skybox[33].position = { 1.0f, -1.0f, 1.0f, 1.0f };//Bottom Right
+	skybox[34].position = { -1.0f, -1.0f, -1.0f, 1.0f };//Top Left
+	skybox[35].position = { 1.0f, -1.0f, -1.0f, 1.0f };//Top Right
 
-	numSkyboxVertices = 24;
+	numSkyboxVertices = 36;
 
 	for (int i = 0; i < numSkyboxVertices; i++)
 	{
-		skybox[i].texture.x = 0.0f;
-		skybox[i].texture.y = 0.0f;
-		skybox[i].normal.x = 0.0f;
-		skybox[i].normal.y = 0.0f;
-		skybox[i].normal.z = 0.0f;
-	}
-
-	int index = 1;
-
-	for (int i = 0; i < 36; i += 6)
-	{
-		skyboxIndices[i] = index;
-		index++;
-		skyboxIndices[i + 1] = index;
-		index++;
-		skyboxIndices[i + 2] = index;
-		skyboxIndices[i + 3] = index;
-		index--;
-		skyboxIndices[i + 4] = index;
-		index += 2;
-		skyboxIndices[i + 5] = index;
-		index++;
+		skybox[i].position.x = -skybox[i].position.x;
+		skybox[i].position.y = -skybox[i].position.y;
+		skybox[i].position.z = -skybox[i].position.z;
 	}
 }
 
