@@ -18,6 +18,7 @@ using namespace std;
 #include "VertexMeshShader.csh"
 #include "WaterShader.csh"
 #include "PixelMeshShader.csh"
+#include "WaterPixelShader.csh"
 
 //Mesh Files
 #include "Assets/StoneHenge.h"
@@ -106,8 +107,9 @@ ID3D11Buffer* skyBoxVertexBuffer;
 ID3D11Buffer* skyBoxIndicesBuffer;
 ID3D11InputLayout* vertexMeshLayout;
 ID3D11VertexShader* vertexMeshShader;
-ID3D11VertexShader* waterShader;
 ID3D11PixelShader* pixelMeshShader;
+ID3D11VertexShader* waterShader;
+ID3D11PixelShader* waterPixelShader;
 
 //ZBuffer for Depth
 ID3D11Texture2D* zBuffer;
@@ -188,9 +190,7 @@ int APIENTRY wWinMain(_In_ HINSTANCE hInstance,
 	// Main message loop:
 	while (true)//GetMessage(&msg, nullptr, 0, 0))
 	{
-		PeekMessage(&msg, nullptr, 0, 0, PM_REMOVE);
-
-		if (!TranslateAccelerator(msg.hwnd, hAccelTable, &msg))
+		if(PeekMessage(&msg, nullptr, 0, 0, PM_REMOVE))
 		{
 			TranslateMessage(&msg);
 			DispatchMessage(&msg);
@@ -422,6 +422,7 @@ BOOL InitInstance(HINSTANCE hInstance, int nCmdShow)
 	hr = myDevice->CreateVertexShader(VertexMeshShader, sizeof(VertexMeshShader), nullptr, &vertexMeshShader);
 	hr = myDevice->CreateVertexShader(WaterShader, sizeof(WaterShader), nullptr, &waterShader);
 	hr = myDevice->CreatePixelShader(PixelMeshShader, sizeof(PixelMeshShader), nullptr, &pixelMeshShader);
+	hr = myDevice->CreatePixelShader(WaterPixelShader, sizeof(WaterPixelShader), nullptr, &waterPixelShader);
 
 	//Make matching input layout for mesh vertex
 	//Describe the vertex to D3D11
@@ -433,7 +434,6 @@ BOOL InitInstance(HINSTANCE hInstance, int nCmdShow)
 	};
 
 	hr = myDevice->CreateInputLayout(meshInputDesc, ARRAYSIZE(meshInputDesc), VertexMeshShader, sizeof(VertexMeshShader), &vertexMeshLayout);
-	hr = myDevice->CreateInputLayout(meshInputDesc, ARRAYSIZE(meshInputDesc), WaterShader, sizeof(WaterShader), &vertexMeshLayout);
 
 	//Create Z Buffer and View
 	D3D11_TEXTURE2D_DESC zDesc;
@@ -482,9 +482,8 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
 	switch (message)
 	{
 	case WM_MOUSEWHEEL:
-		deltaWheel = GET_WHEEL_DELTA_WPARAM(wParam);
-		UpdateFOV();
-		break;
+		deltaWheel += GET_WHEEL_DELTA_WPARAM(wParam);
+ 		break;
 	case WM_COMMAND:
 	{
 		int wmId = LOWORD(wParam);
@@ -639,6 +638,7 @@ void Render()
 	tempMeshVertexBuffer = waterVertexBuffer;
 	myDeviceContext->IASetVertexBuffers(0, 1, &tempMeshVertexBuffer, meshStrides, meshOffsets);
 	myDeviceContext->VSSetShader(waterShader, nullptr, 0);
+	myDeviceContext->PSSetShader(waterPixelShader, nullptr, 0);
 	myDeviceContext->PSSetShaderResources(0, 1, &waterTex);
 	XMMATRIX waterMatrix = XMMatrixTranslation(-50.0f, -1.0f, -50.0f);
 	XMStoreFloat4x4(&myMatrices.worldMatrix, waterMatrix);
@@ -663,6 +663,7 @@ void ReleaseInterfaces()
 	vertexMeshShader->Release();
 	waterShader->Release();
 	pixelMeshShader->Release();
+	waterPixelShader->Release();
 	myRenderTargetView->Release();
 	stonehengeVertexBuffer->Release();
 	stonehengeIndicesBuffer->Release();

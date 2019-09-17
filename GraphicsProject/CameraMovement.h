@@ -32,6 +32,8 @@ POINT prevCursorPoint;
 float nearPlane = 0.1f;
 float farPlane = 500.0f;
 
+void UpdateFOV();
+
 XMMATRIX GetViewMatrix()
 {
 	return camView;
@@ -100,7 +102,7 @@ void CheckKeyInputs()
 	}
 
 	GetCursorPos(&cursorPoint);
-	
+
 	if ((prevCursorPoint.x != cursorPoint.x) || (prevCursorPoint.y != cursorPoint.y))
 	{
 		if (!GetAsyncKeyState(VK_LBUTTON))
@@ -111,6 +113,7 @@ void CheckKeyInputs()
 		prevCursorPoint = cursorPoint;
 	}
 	
+	UpdateFOV();
 	UpdateCam();
 
 }
