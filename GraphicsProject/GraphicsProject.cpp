@@ -817,53 +817,56 @@ void CreateWaterPlane()
 
 void CreateSkyBox()
 {
+	float bottomY = -1.0f;
+	float topY = 1.0f;
+
 	//Front
-	skybox[0].position = { -1.0f, -1.0f, -1.0f, 1.0f };//Bottom Left
-	skybox[1].position = { -1.0f, 1.0f, -1.0f, 1.0f };//Top Left
-	skybox[2].position = { 1.0f, -1.0f, -1.0f, 1.0f };//Bottom Right
-	skybox[3].position = { 1.0f, -1.0f, -1.0f, 1.0f };//Bottom Right
-	skybox[4].position = { -1.0f, 1.0f, -1.0f, 1.0f };//Top Left
-	skybox[5].position = { 1.0f, 1.0f, -1.0f, 1.0f };//Top Right
+	skybox[0].position = { -1.0f, bottomY, -1.0f, 1.0f };//Bottom Left
+	skybox[1].position = { -1.0f, topY, -1.0f, 1.0f };//Top Left
+	skybox[2].position = { 1.0f, bottomY, -1.0f, 1.0f };//Bottom Right
+	skybox[3].position = { 1.0f, bottomY, -1.0f, 1.0f };//Bottom Right
+	skybox[4].position = { -1.0f, topY, -1.0f, 1.0f };//Top Left
+	skybox[5].position = { 1.0f, topY, -1.0f, 1.0f };//Top Right
 
 	//Right
-	skybox[6].position = { 1.0f, -1.0f, -1.0f, 1.0f };//Bottom Left
-	skybox[7].position = { 1.0f, 1.0f, -1.0f, 1.0f };//Top Left
-	skybox[8].position = { 1.0f, -1.0f, 1.0f, 1.0f };//Bottom Right
-	skybox[9].position = { 1.0f, -1.0f, 1.0f, 1.0f };//Bottom Right
-	skybox[10].position = { 1.0f, 1.0f, -1.0f, 1.0f };//Top Left
-	skybox[11].position = { 1.0f, 1.0f, 1.0f, 1.0f };//Top Right
+	skybox[6].position = { 1.0f, bottomY, -1.0f, 1.0f };//Bottom Left
+	skybox[7].position = { 1.0f, topY, -1.0f, 1.0f };//Top Left
+	skybox[8].position = { 1.0f, bottomY, 1.0f, 1.0f };//Bottom Right
+	skybox[9].position = { 1.0f, bottomY, 1.0f, 1.0f };//Bottom Right
+	skybox[10].position = { 1.0f, topY, -1.0f, 1.0f };//Top Left
+	skybox[11].position = { 1.0f, topY, 1.0f, 1.0f };//Top Right
 
 	//Back
-	skybox[12].position = { 1.0f, -1.0f, 1.0f, 1.0f };//Bottom Left
-	skybox[13].position = { 1.0f, 1.0f, 1.0f, 1.0f };//Top Left
-	skybox[14].position = { -1.0f, -1.0f, 1.0f, 1.0f };//Bottom Right
-	skybox[15].position = { -1.0f, -1.0f, 1.0f, 1.0f };//Bottom Right
-	skybox[16].position = { 1.0f, 1.0f, 1.0f, 1.0f };//Top Left
-	skybox[17].position = { -1.0f, 1.0f, 1.0f, 1.0f };//Top Right
+	skybox[12].position = { 1.0f, bottomY, 1.0f, 1.0f };//Bottom Left
+	skybox[13].position = { 1.0f, topY, 1.0f, 1.0f };//Top Left
+	skybox[14].position = { -1.0f, bottomY, 1.0f, 1.0f };//Bottom Right
+	skybox[15].position = { -1.0f, bottomY, 1.0f, 1.0f };//Bottom Right
+	skybox[16].position = { 1.0f, topY, 1.0f, 1.0f };//Top Left
+	skybox[17].position = { -1.0f, topY, 1.0f, 1.0f };//Top Right
 
 	//Left
-	skybox[18].position = { -1.0f, -1.0f, 1.0f, 1.0f };//Bottom Left
-	skybox[19].position = { -1.0f, 1.0f, 1.0f, 1.0f };//Top Left
-	skybox[20].position = { -1.0f, -1.0f, -1.0f, 1.0f };//Bottom Right
-	skybox[21].position = { -1.0f, -1.0f, -1.0f, 1.0f };//Bottom Right
-	skybox[22].position = { -1.0f, 1.0f, 1.0f, 1.0f };//Top Left
-	skybox[23].position = { -1.0f, 1.0f, -1.0f, 1.0f };//Top Right
+	skybox[18].position = { -1.0f, bottomY, 1.0f, 1.0f };//Bottom Left
+	skybox[19].position = { -1.0f, topY, 1.0f, 1.0f };//Top Left
+	skybox[20].position = { -1.0f, bottomY, -1.0f, 1.0f };//Bottom Right
+	skybox[21].position = { -1.0f, bottomY, -1.0f, 1.0f };//Bottom Right
+	skybox[22].position = { -1.0f, topY, 1.0f, 1.0f };//Top Left
+	skybox[23].position = { -1.0f, topY, -1.0f, 1.0f };//Top Right
 
 	//Top
-	skybox[24].position = { -1.0f, 1.0f, -1.0f, 1.0f };//Bottom Left
-	skybox[25].position = { -1.0f, 1.0f, 1.0f, 1.0f };//Top Left
-	skybox[26].position = { 1.0f, 1.0f, -1.0f, 1.0f };//Bottom Right
-	skybox[27].position = { 1.0f, 1.0f, -1.0f, 1.0f };//Bottom Right
-	skybox[28].position = { -1.0f, 1.0f, 1.0f, 1.0f };//Top Left
-	skybox[29].position = { 1.0f, 1.0f, 1.0f, 1.0f };//Top Right
+	skybox[24].position = { -1.0f, topY, -1.0f, 1.0f };//Bottom Left
+	skybox[25].position = { -1.0f, topY, 1.0f, 1.0f };//Top Left
+	skybox[26].position = { 1.0f, topY, -1.0f, 1.0f };//Bottom Right
+	skybox[27].position = { 1.0f, topY, -1.0f, 1.0f };//Bottom Right
+	skybox[28].position = { -1.0f, topY, 1.0f, 1.0f };//Top Left
+	skybox[29].position = { 1.0f, topY, 1.0f, 1.0f };//Top Right
 
 	//Bottom
-	skybox[30].position = { -1.0f, -1.0f, 1.0f, 1.0f };//Bottom Left
-	skybox[31].position = { -1.0f, -1.0f, -1.0f, 1.0f };//Top Left
-	skybox[32].position = { 1.0f, -1.0f, 1.0f, 1.0f };//Bottom Right
-	skybox[33].position = { 1.0f, -1.0f, 1.0f, 1.0f };//Bottom Right
-	skybox[34].position = { -1.0f, -1.0f, -1.0f, 1.0f };//Top Left
-	skybox[35].position = { 1.0f, -1.0f, -1.0f, 1.0f };//Top Right
+	skybox[30].position = { -1.0f, bottomY, 1.0f, 1.0f };//Bottom Left
+	skybox[31].position = { -1.0f, bottomY, -1.0f, 1.0f };//Top Left
+	skybox[32].position = { 1.0f, bottomY, 1.0f, 1.0f };//Bottom Right
+	skybox[33].position = { 1.0f, bottomY, 1.0f, 1.0f };//Bottom Right
+	skybox[34].position = { -1.0f, bottomY, -1.0f, 1.0f };//Top Left
+	skybox[35].position = { 1.0f, bottomY, -1.0f, 1.0f };//Top Right
 
 	numSkyboxVertices = 36;
 
@@ -902,6 +905,9 @@ void MakeLights()
 	//Direction Light 
 	static float lightAngle = -0.577f; lightAngle += 0.01;
 	lightDir = { -0.577f, 0.577f, -0.577f, 1.0f };
+	static float dirLightAngle = 0.0f; dirLightAngle += 0.01f;
+	XMMATRIX dirLightRotation = XMMatrixRotationY(dirLightAngle);
+	lightDir = XMVector4Transform(lightDir, dirLightRotation);
 	XMStoreFloat4(&myLights.vLightDir, lightDir);
 	lightColor = { 0.5f, 0.5f, 0.5f, 1.0f };
 	XMStoreFloat4(&myLights.vLightColor, lightColor);
@@ -916,9 +922,15 @@ void MakeLights()
 	XMStoreFloat4(&myLights.vPointLightColor, pointLightColor);
 
 	//Spot Light
-	spotLightDir = { 0.0f, -1.0f, 0.0f, 0.0f };
+	spotLightDir = { 1.0f, 0.0f, 0.0f, 0.0f };
+	static float spotLightDirAngle = 0.0f; spotLightDirAngle += 0.05f;
+	XMMATRIX spotLightDirRotation = XMMatrixRotationY(spotLightDirAngle);
+	spotLightDir = XMVector4Transform(spotLightDir, spotLightDirRotation);
 	XMStoreFloat4(&myLights.vSpotLightDir, spotLightDir);
 	spotLightPos = { -6.0f, 3.0f, -13.0f, 1.0f };
+	static float spotLightRotAngle = 0.0f; spotLightRotAngle += 0.01f;
+	XMMATRIX spotLightPosRotation = XMMatrixRotationY(spotLightRotAngle);
+	spotLightPos = XMVector4Transform(spotLightPos, spotLightPosRotation);
 	XMStoreFloat4(&myLights.vSpotLightPos, spotLightPos);
 	spotLightColor = MAGENTA;
 	XMStoreFloat4(&myLights.vSpotLightColor, spotLightColor);

@@ -57,7 +57,7 @@ float4 main(OutputVertex inputPixel) : SV_TARGET
     float surfaceRatio = dot(-spotLightDir, vSpotLightDir);
     float amountOfSpotLight = dot(spotLightDir, float4(inputPixel.nrm, 0));
     float innerAngle = vSpotLightConeRatio.x;
-    float outerAngle = vSpotLightConeRatio.x - 0.2f;
+    float outerAngle = vSpotLightConeRatio.x - 0.05f;
     attenuation = 1.0f - saturate(length(vSpotLightPos - inputPixel.worldPos) / spotLightRange);
     attenuation *= 1.0f - saturate((innerAngle - surfaceRatio) / (innerAngle - outerAngle));
     //attenuation *= attenuation;

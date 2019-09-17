@@ -30,7 +30,7 @@ float FOVDivider = 2.0f;
 POINT cursorPoint;
 POINT prevCursorPoint;
 float nearPlane = 0.1f;
-float farPlane = 100.0f;
+float farPlane = 500.0f;
 
 XMMATRIX GetViewMatrix()
 {
