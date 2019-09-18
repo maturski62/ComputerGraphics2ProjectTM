@@ -109,6 +109,11 @@ void CheckKeyInputs()
 		{
 			camYaw -= (prevCursorPoint.x - cursorPoint.x) * 0.002f;
 			camPitch -= (prevCursorPoint.y - cursorPoint.y) * 0.002f;
+			//Clamping the X rotation so the camera doesn't flip and have inverted controls.
+			if (camPitch > 1.56f)
+				camPitch = 1.56f;
+			else if (camPitch < -1.56f)
+				camPitch = -1.56;
 		}
 		prevCursorPoint = cursorPoint;
 	}

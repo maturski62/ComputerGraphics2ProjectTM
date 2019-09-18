@@ -60,15 +60,15 @@ float4 main(OutputVertex inputPixel) : SV_TARGET
     float outerAngle = vSpotLightConeRatio.x - 0.05f;
     attenuation = 1.0f - saturate(length(vSpotLightPos - inputPixel.worldPos) / spotLightRange);
     attenuation *= 1.0f - saturate((innerAngle - surfaceRatio) / (innerAngle - outerAngle));
-    //attenuation *= attenuation;
+    attenuation *= attenuation;
     spotLightColor = (amountOfSpotLight * vSpotLightColor) * attenuation;
 
     //Directional Light
     directionLightColor += saturate(dot(vLightDir, float4(inputPixel.nrm, 0)) * vLightColor);
-    directionLightColor.a = 1.0f;
 
     finalColor = directionLightColor + pointLightColor + spotLightColor;
     finalColor *= Diffuse.Sample(samLinear, inputPixel.tex);
+    finalColor.a = 1.0f;
     
 	return finalColor;
 }

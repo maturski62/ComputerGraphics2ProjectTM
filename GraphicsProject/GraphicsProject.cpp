@@ -137,6 +137,7 @@ struct Lights
 	XMFLOAT4 vSpotLightColor;
 	XMFLOAT4 vSpotLightConeRatio;
 	XMFLOAT4 drawingSkybox;
+	XMFLOAT4 vWaterTime;
 }myLights;
 
 #define MAX_LOADSTRING 100
@@ -540,6 +541,17 @@ INT_PTR CALLBACK About(HWND hDlg, UINT message, WPARAM wParam, LPARAM lParam)
 
 void Render()
 {
+	static float t = 0.0f;
+	static ULONGLONG timeStart = 0;
+	ULONGLONG timeCur = GetTickCount64();
+	if (timeStart == 0)
+		timeStart = timeCur;
+	t = (timeCur - timeStart) / 1000.0f;
+	//water time pixel shader
+	static float wavePixelTime = 0.0f; wavePixelTime += 0.01f;
+ 	XMVECTOR tempWaterTime = { wavePixelTime, 0.0f, 0.0f, 0.0f};
+	XMStoreFloat4(&myLights.vWaterTime, tempWaterTime);
+
 	//Clear screen to one color
 	float color[] = CYAN;
 	myDeviceContext->ClearRenderTargetView(myRenderTargetView, color);
@@ -905,9 +917,9 @@ void MakeLights()
 {
 	//Direction Light
 	lightDir = { 1.0f, 0.9f, 0.0f, 1.0f };
-	//static float dirLightAngle = 0.0f; dirLightAngle += 0.005f;
-	//XMMATRIX dirLightRotation = XMMatrixRotationZ(-dirLightAngle);
-	//lightDir = XMVector4Transform(lightDir, dirLightRotation);
+	static float dirLightAngle = 0.0f; dirLightAngle += 0.005f;
+	XMMATRIX dirLightRotation = XMMatrixRotationZ(-dirLightAngle);
+	lightDir = XMVector4Transform(lightDir, dirLightRotation);
 	XMStoreFloat4(&myLights.vLightDir, lightDir);
 	lightColor = { 0.5f, 0.5f, 0.5f, 1.0f };
 	XMStoreFloat4(&myLights.vLightColor, lightColor);
