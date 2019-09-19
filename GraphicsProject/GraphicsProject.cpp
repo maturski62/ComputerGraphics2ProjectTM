@@ -40,6 +40,16 @@ struct MyVertex
 	XMFLOAT2 texture;
 	XMFLOAT3 normal;
 };
+struct MyVec3
+{
+	float xyz[3];
+};
+
+struct SimpleOBJ
+{
+	vector<MyVertex> vertexList;
+	vector<unsigned int> indicesList;
+};
 
 struct SimpleMesh
 {
@@ -48,18 +58,17 @@ struct SimpleMesh
 };
 
 //Models
-MyVertex* stoneHenge = new MyVertex[ARRAYSIZE(StoneHenge_data)];
-unsigned int stoneHengeIndices[ARRAYSIZE(StoneHenge_indicies)];
-MyVertex* barrels = new MyVertex[ARRAYSIZE(barrels_data)];
-unsigned int barrelsIndices[ARRAYSIZE(barrels_indicies)];
-unsigned int numVertices = 0;
-unsigned int numIndices = 0;
 MyVertex* waterPlane = new MyVertex[2500];
 unsigned int waterPlaneIndicesArray[726];
 unsigned int numWaterVertices = 0;
 MyVertex* skybox = new MyVertex[36];
 unsigned int skyboxIndices[36];
 unsigned int numSkyboxVertices = 0;
+//OBJ Models
+MyVertex* islandArray = new MyVertex[13476];
+unsigned int islandIndices[13476];
+unsigned int numIslandVertices = 0;
+unsigned int numIslandIndices = 0;
 
 //Screen Varibales
 float screenWidth;
@@ -84,27 +93,19 @@ XMVECTOR spotLightConeRatio;
 ID3D11Buffer* constantBuffer;
 ID3D11Buffer* lightConstantBuffer;
 ID3D11SamplerState* samplerLinear;
-ID3D11ShaderResourceView* stonehengeTex;
-ID3D11ShaderResourceView* barrelsTex;
-ID3D11ShaderResourceView* axeTex;
 ID3D11ShaderResourceView* waterTex;
 ID3D11ShaderResourceView* skyboxTex;
+ID3D11ShaderResourceView* islandTex;
 
 //Mesh data
-//Stonehenge
-ID3D11Buffer* stonehengeVertexBuffer;
-ID3D11Buffer* stonehengeIndicesBuffer;
-//Barrels
-ID3D11Buffer* barrelsVertexBuffer;
-ID3D11Buffer* barrelsIndicesBuffer;
-//Cube
-ID3D11Buffer* axeVertexBuffer;
-ID3D11Buffer* axeIndicesBuffer;
 //Water
 ID3D11Buffer* waterVertexBuffer;
 //Skybox
 ID3D11Buffer* skyBoxVertexBuffer;
 ID3D11Buffer* skyBoxIndicesBuffer;
+//Island
+ID3D11Buffer* islandVertexBuffer;
+ID3D11Buffer* islandIndicesBuffer;
 ID3D11InputLayout* vertexMeshLayout;
 ID3D11VertexShader* vertexMeshShader;
 ID3D11PixelShader* pixelMeshShader;
@@ -156,11 +157,10 @@ INT_PTR CALLBACK    About(HWND, UINT, WPARAM, LPARAM);
 void UploadToVideoCard();
 void Render();
 void ReleaseInterfaces();
-void CreateStoneHenge();
-void CreateBarrels();
 void CreateWaterPlane();
 void CreateSkyBox();
 void LoadDotMesh(const char* meshFileName, SimpleMesh& mesh);
+bool LoadOBJ(const char* meshFileName, SimpleOBJ& objMesh);
 void MakeLights();
 
 int APIENTRY wWinMain(_In_ HINSTANCE hInstance,
@@ -328,76 +328,30 @@ BOOL InitInstance(HINSTANCE hInstance, int nCmdShow)
 	bDesc.Usage = D3D11_USAGE_DYNAMIC;
 	hr = myDevice->CreateBuffer(&bDesc, nullptr, &lightConstantBuffer);
 
-	//Load Mesh Data
-	const char* meshFilename = "Assets/axe.mesh";
-	SimpleMesh simpleMesh;
-	LoadDotMesh(meshFilename, simpleMesh);
-	numVertices = simpleMesh.vertexList.size();
-	numIndices = simpleMesh.indicesList.size();
-	CreateStoneHenge();
-	CreateBarrels();
+	//Create Water and Skybox
 	CreateWaterPlane();
 	CreateSkyBox();
 
 	//Creating Texture
 	if (myDevice)
 	{
-		hr = CreateDDSTextureFromFile(myDevice, L"Assets/stoneHenge.dds", nullptr, &stonehengeTex);
-		hr = CreateDDSTextureFromFile(myDevice, L"Assets/barrelTexture.dds", nullptr, &barrelsTex);
-		hr = CreateDDSTextureFromFile(myDevice, L"Assets/axeTex.dds", nullptr, &axeTex);
 		hr = CreateDDSTextureFromFile(myDevice, L"Assets/water.dds", nullptr, &waterTex);
 		hr = CreateDDSTextureFromFile(myDevice, L"Assets/SkyboxOcean.dds", nullptr, &skyboxTex);
+		hr = CreateDDSTextureFromFile(myDevice, L"Assets/islandTex.dds", nullptr, &islandTex);
 	}
 
 	//Time for the wave
 	waveTime = { 0.0f, 0.0f, 0.0f, 0.0f };
 
-	//Load Axe
-	D3D11_BUFFER_DESC bd = {};
-	bd.Usage = D3D11_USAGE_DEFAULT;
-	bd.ByteWidth = sizeof(MyVertex) * simpleMesh.vertexList.size();
-	bd.BindFlags = D3D11_BIND_VERTEX_BUFFER;
-	bd.CPUAccessFlags = 0;
-	D3D11_SUBRESOURCE_DATA InitData = {};
-	InitData.pSysMem = simpleMesh.vertexList.data();
-	hr = myDevice->CreateBuffer(&bd, &InitData, &axeVertexBuffer);
-	//IndexBuffer
-	bd.Usage = D3D11_USAGE_DEFAULT;
-	bd.ByteWidth = sizeof(int) * simpleMesh.indicesList.size();
-	bd.BindFlags = D3D11_BIND_INDEX_BUFFER;
-	bd.CPUAccessFlags = 0;
-	InitData.pSysMem = simpleMesh.indicesList.data();
-	hr = myDevice->CreateBuffer(&bd, &InitData, &axeIndicesBuffer);
-
-	//Load Stonehenge
+	//Load Skybox
 	bDesc.BindFlags = D3D11_BIND_VERTEX_BUFFER;
-	bDesc.ByteWidth = sizeof(MyVertex) * ARRAYSIZE(StoneHenge_data);
+	bDesc.ByteWidth = sizeof(MyVertex) * numSkyboxVertices;
 	bDesc.CPUAccessFlags = 0;
 	bDesc.MiscFlags = 0;
 	bDesc.StructureByteStride = 0;
 	bDesc.Usage = D3D11_USAGE_IMMUTABLE;
-	subData.pSysMem = stoneHenge;
-	hr = myDevice->CreateBuffer(&bDesc, &subData, &stonehengeVertexBuffer);
-	//index buffer mesh
-	bDesc.BindFlags = D3D11_BIND_INDEX_BUFFER;
-	bDesc.ByteWidth = sizeof(unsigned int) * ARRAYSIZE(stoneHengeIndices);
-	subData.pSysMem = stoneHengeIndices;
-	hr = myDevice->CreateBuffer(&bDesc, &subData, &stonehengeIndicesBuffer);
-
-	//Load Barrels
-	bDesc.BindFlags = D3D11_BIND_VERTEX_BUFFER;
-	bDesc.ByteWidth = sizeof(MyVertex) * ARRAYSIZE(barrels_data);
-	bDesc.CPUAccessFlags = 0;
-	bDesc.MiscFlags = 0;
-	bDesc.StructureByteStride = 0;
-	bDesc.Usage = D3D11_USAGE_IMMUTABLE;
-	subData.pSysMem = barrels;
-	hr = myDevice->CreateBuffer(&bDesc, &subData, &barrelsVertexBuffer);
-	//index buffer mesh
-	bDesc.BindFlags = D3D11_BIND_INDEX_BUFFER;
-	bDesc.ByteWidth = sizeof(unsigned int) * ARRAYSIZE(barrelsIndices);
-	subData.pSysMem = barrelsIndices;
-	hr = myDevice->CreateBuffer(&bDesc, &subData, &barrelsIndicesBuffer);
+	subData.pSysMem = skybox;
+	hr = myDevice->CreateBuffer(&bDesc, &subData, &skyBoxVertexBuffer);
 
 	//Load Water
 	bDesc.BindFlags = D3D11_BIND_VERTEX_BUFFER;
@@ -409,15 +363,23 @@ BOOL InitInstance(HINSTANCE hInstance, int nCmdShow)
 	subData.pSysMem = waterPlane;
 	hr = myDevice->CreateBuffer(&bDesc, &subData, &waterVertexBuffer);
 
-	//Load Skybox
+	//Load Island
+	const char* island = "Assets/island.obj";
+	SimpleOBJ islandOBJ;
+	LoadOBJ(island, islandOBJ);
 	bDesc.BindFlags = D3D11_BIND_VERTEX_BUFFER;
-	bDesc.ByteWidth = sizeof(MyVertex) * numSkyboxVertices;
+	bDesc.ByteWidth = sizeof(MyVertex) * numIslandVertices;
 	bDesc.CPUAccessFlags = 0;
 	bDesc.MiscFlags = 0;
 	bDesc.StructureByteStride = 0;
 	bDesc.Usage = D3D11_USAGE_IMMUTABLE;
-	subData.pSysMem = skybox;
-	hr = myDevice->CreateBuffer(&bDesc, &subData, &skyBoxVertexBuffer);
+	subData.pSysMem = islandArray;
+	hr = myDevice->CreateBuffer(&bDesc, &subData, &islandVertexBuffer);
+	//index buffer mesh
+	bDesc.BindFlags = D3D11_BIND_INDEX_BUFFER;
+	bDesc.ByteWidth = sizeof(unsigned int) * numIslandIndices;
+	subData.pSysMem = islandIndices;
+	hr = myDevice->CreateBuffer(&bDesc, &subData, &islandIndicesBuffer);
 
 	//Load new mesh shader
 	hr = myDevice->CreateVertexShader(VertexMeshShader, sizeof(VertexMeshShader), nullptr, &vertexMeshShader);
@@ -547,10 +509,6 @@ void Render()
 	if (timeStart == 0)
 		timeStart = timeCur;
 	t = (timeCur - timeStart) / 1000.0f;
-	//water time pixel shader
-	static float wavePixelTime = 0.0f; wavePixelTime += 0.01f;
- 	XMVECTOR tempWaterTime = { wavePixelTime, 0.0f, 0.0f, 0.0f};
-	XMStoreFloat4(&myLights.vWaterTime, tempWaterTime);
 
 	//Clear screen to one color
 	float color[] = CYAN;
@@ -614,37 +572,19 @@ void Render()
 	UploadToVideoCard();
 	myDeviceContext->Draw(numSkyboxVertices, 0);
 	myDeviceContext->ClearDepthStencilView(zBufferView, D3D11_CLEAR_DEPTH, 1, 0);
-
-	//Draw Stonehenge
-	tempMeshVertexBuffer = stonehengeVertexBuffer;
-	myDeviceContext->IASetVertexBuffers(0, 1, &tempMeshVertexBuffer, meshStrides, meshOffsets);
-	myDeviceContext->IASetIndexBuffer(stonehengeIndicesBuffer, DXGI_FORMAT_R32_UINT, 0);
-	myDeviceContext->PSSetShaderResources(0, 1, &stonehengeTex);
-	XMMATRIX stoneHedge = XMMatrixIdentity();
-	XMStoreFloat4x4(&myMatrices.worldMatrix, stoneHedge);
 	XMStoreFloat4(&myLights.drawingSkybox, { -1.0f });
-	UploadToVideoCard();
-	myDeviceContext->DrawIndexed(ARRAYSIZE(StoneHenge_indicies), 0, 0);
 
-	//Draw Barrels
-	tempMeshVertexBuffer = barrelsVertexBuffer;
+	//Draw Island
+	tempMeshVertexBuffer = islandVertexBuffer;
 	myDeviceContext->IASetVertexBuffers(0, 1, &tempMeshVertexBuffer, meshStrides, meshOffsets);
-	myDeviceContext->IASetIndexBuffer(barrelsIndicesBuffer, DXGI_FORMAT_R32_UINT, 0);
-	myDeviceContext->PSSetShaderResources(0, 1, &barrelsTex);
-	XMMATRIX barrelMatrix = XMMatrixTranslation(0.0f, 0.0f, -15.0f);
-	XMStoreFloat4x4(&myMatrices.worldMatrix, barrelMatrix);
+	myDeviceContext->IASetIndexBuffer(islandIndicesBuffer, DXGI_FORMAT_R32_UINT, 0);
+	myDeviceContext->VSSetShader(vertexMeshShader, nullptr, 0);
+	myDeviceContext->PSSetShader(pixelMeshShader, nullptr, 0);
+	myDeviceContext->PSSetShaderResources(0, 1, &islandTex);
+	XMMATRIX islandMatrix = XMMatrixTranslation(0.0f, 0.0f, 0.0f);
+	XMStoreFloat4x4(&myMatrices.worldMatrix, islandMatrix);
 	UploadToVideoCard();
-	myDeviceContext->DrawIndexed(ARRAYSIZE(barrels_indicies), 0, 0);
-
-	//Draw Cube from .mesh file
-	tempMeshVertexBuffer = axeVertexBuffer;
-	myDeviceContext->IASetVertexBuffers(0, 1, &tempMeshVertexBuffer, meshStrides, meshOffsets);
-	myDeviceContext->IASetIndexBuffer(axeIndicesBuffer, DXGI_FORMAT_R32_UINT, 0);
-	myDeviceContext->PSSetShaderResources(0, 1, &axeTex);
-	XMMATRIX axeMatrix = XMMatrixTranslation(-5.0f, 0.0f, 0.0f);
-	XMStoreFloat4x4(&myMatrices.worldMatrix, axeMatrix);
-	UploadToVideoCard();
-	myDeviceContext->DrawIndexed(numIndices, 0, 0);
+	myDeviceContext->DrawIndexed(numIslandIndices, 0, 0);
 
 	//Draw Water
 	tempMeshVertexBuffer = waterVertexBuffer;
@@ -654,19 +594,21 @@ void Render()
 	myDeviceContext->PSSetShaderResources(0, 1, &waterTex);
 	XMMATRIX waterMatrix = XMMatrixTranslation(-50.0f, -1.0f, -50.0f);
 	XMStoreFloat4x4(&myMatrices.worldMatrix, waterMatrix);
+	static float wavePixelTime = 0.0f; wavePixelTime += 0.01f;
+	XMVECTOR tempWaterTime = { wavePixelTime, 0.0f, 0.0f, 0.0f };
+	XMStoreFloat4(&myLights.vWaterTime, tempWaterTime);
 	UploadToVideoCard();
 	myDeviceContext->Draw(numWaterVertices, 0);
+
 
 	mySwapChain->Present(1, 0);
 }
 
 void ReleaseInterfaces()
 {
-	stonehengeTex->Release();
-	barrelsTex->Release();
-	axeTex->Release();
 	waterTex->Release();
 	skyboxTex->Release();
+	islandTex->Release();
 	lightConstantBuffer->Release();
 	samplerLinear->Release();
 	zBuffer->Release();
@@ -677,14 +619,10 @@ void ReleaseInterfaces()
 	pixelMeshShader->Release();
 	waterPixelShader->Release();
 	myRenderTargetView->Release();
-	stonehengeVertexBuffer->Release();
-	stonehengeIndicesBuffer->Release();
-	barrelsVertexBuffer->Release();
-	barrelsIndicesBuffer->Release();
-	axeVertexBuffer->Release();
-	axeIndicesBuffer->Release();
 	waterVertexBuffer->Release();
 	skyBoxVertexBuffer->Release();
+	islandVertexBuffer->Release();
+	islandIndicesBuffer->Release();
 	constantBuffer->Release();
 	myDeviceContext->Release();
 	mySwapChain->Release();
@@ -710,53 +648,30 @@ void UploadToVideoCard()
 	myDeviceContext->PSSetConstantBuffers(0, ARRAYSIZE(constants), constants);
 }
 
-void CreateStoneHenge() 
-{
-	for (size_t i = 0; i < ARRAYSIZE(StoneHenge_data); i++)
-	{
-		//Set POSITION
-		stoneHenge[i].position.x = StoneHenge_data[i].pos[0];
-		stoneHenge[i].position.y = StoneHenge_data[i].pos[1];
-		stoneHenge[i].position.z = StoneHenge_data[i].pos[2];
-		stoneHenge[i].position.w = 1.0f;
-		//Set UV
-		stoneHenge[i].texture.x = StoneHenge_data[i].uvw[0];
-		stoneHenge[i].texture.y = StoneHenge_data[i].uvw[1];
-		//SET NORMAL
-		stoneHenge[i].normal.x = StoneHenge_data[i].nrm[0];
-		stoneHenge[i].normal.y = StoneHenge_data[i].nrm[1];
-		stoneHenge[i].normal.z = StoneHenge_data[i].nrm[2];
-	}
+//void CreateStoneHenge() 
+//{
+//	for (size_t i = 0; i < ARRAYSIZE(StoneHenge_data); i++)
+//	{
+//		//Set POSITION
+//		stoneHenge[i].position.x = StoneHenge_data[i].pos[0];
+//		stoneHenge[i].position.y = StoneHenge_data[i].pos[1];
+//		stoneHenge[i].position.z = StoneHenge_data[i].pos[2];
+//		stoneHenge[i].position.w = 1.0f;
+//		//Set UV
+//		stoneHenge[i].texture.x = StoneHenge_data[i].uvw[0];
+//		stoneHenge[i].texture.y = StoneHenge_data[i].uvw[1];
+//		//SET NORMAL
+//		stoneHenge[i].normal.x = StoneHenge_data[i].nrm[0];
+//		stoneHenge[i].normal.y = StoneHenge_data[i].nrm[1];
+//		stoneHenge[i].normal.z = StoneHenge_data[i].nrm[2];
+//	}
+//
+//	for (size_t i = 0; i < ARRAYSIZE(StoneHenge_indicies); i++)
+//	{
+//		stoneHengeIndices[i] = StoneHenge_indicies[i];
+//	}
+//}
 
-	for (size_t i = 0; i < ARRAYSIZE(StoneHenge_indicies); i++)
-	{
-		stoneHengeIndices[i] = StoneHenge_indicies[i];
-	}
-}
-
-void CreateBarrels()
-{
-	for (size_t i = 0; i < ARRAYSIZE(barrels_data); i++)
-	{
-		//Set POSITION
-		barrels[i].position.x = barrels_data[i].pos[0];
-		barrels[i].position.y = barrels_data[i].pos[1];
-		barrels[i].position.z = barrels_data[i].pos[2];
-		barrels[i].position.w = 1.0f;
-		//Set UV
-		barrels[i].texture.x = barrels_data[i].uvw[0];
-		barrels[i].texture.y = barrels_data[i].uvw[1];
-		//SET NORMAL
-		barrels[i].normal.x = barrels_data[i].nrm[0];
-		barrels[i].normal.y = barrels_data[i].nrm[1];
-		barrels[i].normal.z = barrels_data[i].nrm[2];
-	}
-
-	for (size_t i = 0; i < ARRAYSIZE(barrels_indicies); i++)
-	{
-		barrelsIndices[i] = barrels_indicies[i];
-	}
-}
 
 void CreateWaterPlane()
 {
@@ -913,41 +828,145 @@ void LoadDotMesh(const char* meshFileName, SimpleMesh& mesh)
 	file.close();
 }
 
+bool LoadOBJ(const char* meshFileName, SimpleOBJ& objMesh)
+{
+	vector<unsigned int> vertexIndices, uvIndices, normalIndices;
+	vector<MyVec3> tempVertices;
+	vector<MyVec3> tempTexture;
+	vector<MyVec3> tempNormals;
+
+	FILE* file;
+	fopen_s(&file, meshFileName, "r");
+	if (file == NULL) {
+		printf("Impossible to open the file !\n");
+		return false;
+	}
+
+	while (1)
+	{
+		char lineHeader[128];
+		// read the first word of the line
+		int res = fscanf_s(file, "%s", lineHeader, sizeof(lineHeader));
+		if (res == EOF)
+			break; // EOF = End Of File. Quit the loop.
+
+		// else : parse lineHeader
+		if (strcmp(lineHeader, "v") == 0)
+		{
+			MyVec3 tempVert;
+			fscanf_s(file, "%f %f %f\n", &tempVert.xyz[0], &tempVert.xyz[1], &tempVert.xyz[2]);
+			tempVertices.push_back(tempVert);
+		}
+		else if (strcmp(lineHeader, "vt") == 0) 
+		{
+			MyVec3 tempTex;
+			fscanf_s(file, "%f %f\n", &tempTex.xyz[0], &tempTex.xyz[1]);
+			tempTexture.push_back(tempTex);
+		}
+		else if (strcmp(lineHeader, "vn") == 0) 
+		{
+			MyVec3 tempNrm;
+			fscanf_s(file, "%f %f %f\n", &tempNrm.xyz[0], &tempNrm.xyz[1], &tempNrm.xyz[2]);
+			tempNormals.push_back(tempNrm);
+		}
+		else if (strcmp(lineHeader, "f") == 0) {
+			std::string vertex1, vertex2, vertex3;
+			unsigned int vertexIndex[3], uvIndex[3], normalIndex[3];
+			int matches = fscanf_s(file, "%d/%d/%d %d/%d/%d %d/%d/%d\n", &vertexIndex[0], &uvIndex[0], &normalIndex[0], &vertexIndex[1], &uvIndex[1], &normalIndex[1], &vertexIndex[2], &uvIndex[2], &normalIndex[2]);
+			if (matches != 9) {
+				printf("File can't be read by our simple parser : ( Try exporting with other options\n");
+				return false;
+			}
+			vertexIndices.push_back(vertexIndex[0]);
+			vertexIndices.push_back(vertexIndex[1]);
+			vertexIndices.push_back(vertexIndex[2]);
+			uvIndices.push_back(uvIndex[0]);
+			uvIndices.push_back(uvIndex[1]);
+			uvIndices.push_back(uvIndex[2]);
+			normalIndices.push_back(normalIndex[0]);
+			normalIndices.push_back(normalIndex[1]);
+			normalIndices.push_back(normalIndex[2]);
+		}
+
+	}
+
+	// For each vertex of each triangle
+	for (unsigned int i = 0; i < vertexIndices.size(); i++)
+	{
+		MyVertex currVertex;
+		unsigned int vertexIndex = vertexIndices[i];
+		float x = tempVertices[vertexIndex - 1].xyz[0];
+		float y = tempVertices[vertexIndex - 1].xyz[1];
+		float z = tempVertices[vertexIndex - 1].xyz[2];
+		float w = 1.0f;
+		currVertex.position = { x, y, z, w };
+		
+		unsigned int uvIndex = uvIndices[i];
+		float ux = tempTexture[uvIndex - 1].xyz[0];
+		float vy = 1.0f - tempTexture[uvIndex - 1].xyz[1];
+		currVertex.texture = { ux, vy };
+
+		unsigned int nrmIndex = normalIndices[i];
+		float nrmX = tempNormals[nrmIndex - 1].xyz[0];
+		float nrmY = tempNormals[nrmIndex - 1].xyz[1];
+		float nrmZ = tempNormals[nrmIndex - 1].xyz[2];
+		currVertex.normal = { nrmX, nrmY, nrmZ };
+
+		objMesh.vertexList.push_back(currVertex);
+		objMesh.indicesList.push_back(i);
+	}
+
+	numIslandVertices = objMesh.vertexList.size();
+	numIslandIndices = objMesh.indicesList.size();
+
+	//Populate Vertex Array
+	for (unsigned int i = 0; i < objMesh.vertexList.size(); i++)
+	{
+		islandArray[i] = objMesh.vertexList[i];
+	}
+
+	//Populate Indices Array
+	for (unsigned int i = 0; i < objMesh.indicesList.size(); i++)
+	{
+		islandIndices[i] = objMesh.indicesList[i];
+	}
+}
+
 void MakeLights()
 {
 	//Direction Light
 	lightDir = { 1.0f, 0.9f, 0.0f, 1.0f };
-	static float dirLightAngle = 0.0f; dirLightAngle += 0.005f;
-	XMMATRIX dirLightRotation = XMMatrixRotationZ(-dirLightAngle);
-	lightDir = XMVector4Transform(lightDir, dirLightRotation);
+	//static float dirLightAngle = 0.0f; dirLightAngle += 0.005f;
+	//XMMATRIX dirLightRotation = XMMatrixRotationZ(-dirLightAngle);
+	//lightDir = XMVector4Transform(lightDir, dirLightRotation);
 	XMStoreFloat4(&myLights.vLightDir, lightDir);
 	lightColor = { 0.5f, 0.5f, 0.5f, 1.0f };
 	XMStoreFloat4(&myLights.vLightColor, lightColor);
 
 	//Point Light
-	pointLightPos = { 5.0f, 5.0f, -2.0f, 1.0f };
-	static float pointLightAngle = 0.0f; pointLightAngle += 0.05f;
-	XMMATRIX pointLightRotation = XMMatrixRotationY(pointLightAngle);
-	pointLightPos = XMVector4Transform(pointLightPos, pointLightRotation);
-	XMStoreFloat4(&myLights.vPointLightPos, pointLightPos);
-	pointLightColor = RED;
-	XMStoreFloat4(&myLights.vPointLightColor, pointLightColor);
+	//pointLightPos = { 5.0f, 5.0f, -2.0f, 1.0f };
+	//static float pointLightAngle = 0.0f; pointLightAngle += 0.05f;
+	//XMMATRIX pointLightRotation = XMMatrixRotationY(pointLightAngle);
+	//pointLightPos = XMVector4Transform(pointLightPos, pointLightRotation);
+	//XMStoreFloat4(&myLights.vPointLightPos, pointLightPos);
+	//pointLightColor = RED;
+	//XMStoreFloat4(&myLights.vPointLightColor, pointLightColor);
 
 	//Spot Light
-	spotLightDir = { 1.0f, 0.0f, 0.0f, 0.0f };
-	static float spotLightDirAngle = 0.0f; spotLightDirAngle += 0.05f;
-	XMMATRIX spotLightDirRotation = XMMatrixRotationY(spotLightDirAngle);
-	spotLightDir = XMVector4Transform(spotLightDir, spotLightDirRotation);
-	XMStoreFloat4(&myLights.vSpotLightDir, spotLightDir);
-	spotLightPos = { -6.0f, 3.0f, -13.0f, 1.0f };
-	static float spotLightRotAngle = 0.0f; spotLightRotAngle += 0.01f;
-	XMMATRIX spotLightPosRotation = XMMatrixRotationY(spotLightRotAngle);
-	spotLightPos = XMVector4Transform(spotLightPos, spotLightPosRotation);
-	XMStoreFloat4(&myLights.vSpotLightPos, spotLightPos);
-	spotLightColor = MAGENTA;
-	XMStoreFloat4(&myLights.vSpotLightColor, spotLightColor);
-	spotLightConeRatio = { 0.8f, 0.0f, 0.0f, 0.0f };
-	XMStoreFloat4(&myLights.vSpotLightConeRatio, spotLightConeRatio);
+	//spotLightDir = { 1.0f, 0.0f, 0.0f, 0.0f };
+	//static float spotLightDirAngle = 0.0f; spotLightDirAngle += 0.05f;
+	//XMMATRIX spotLightDirRotation = XMMatrixRotationY(spotLightDirAngle);
+	//spotLightDir = XMVector4Transform(spotLightDir, spotLightDirRotation);
+	//XMStoreFloat4(&myLights.vSpotLightDir, spotLightDir);
+	//spotLightPos = { -6.0f, 3.0f, -13.0f, 1.0f };
+	//static float spotLightRotAngle = 0.0f; spotLightRotAngle += 0.01f;
+	//XMMATRIX spotLightPosRotation = XMMatrixRotationY(spotLightRotAngle);
+	//spotLightPos = XMVector4Transform(spotLightPos, spotLightPosRotation);
+	//XMStoreFloat4(&myLights.vSpotLightPos, spotLightPos);
+	//spotLightColor = MAGENTA;
+	//XMStoreFloat4(&myLights.vSpotLightColor, spotLightColor);
+	//spotLightConeRatio = { 0.8f, 0.0f, 0.0f, 0.0f };
+	//XMStoreFloat4(&myLights.vSpotLightConeRatio, spotLightConeRatio);
 
 	//Other
 	ambient = { 0.2f, 0.2f, 0.2f, 1.0f };

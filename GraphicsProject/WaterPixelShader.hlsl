@@ -20,7 +20,6 @@ cbuffer PSConstantBuffer : register(b1)
 
 float4 main(OutputVertex inputPixel) : SV_TARGET
 {
-    //return (0.0f, 1.0f, 1.0f, 1.0f);
     float4 finalColor = 0;
     float4 directionLightColor = 0;
     
@@ -28,8 +27,8 @@ float4 main(OutputVertex inputPixel) : SV_TARGET
     directionLightColor += saturate(dot(vLightDir, float4(inputPixel.nrm, 0)) * vLightColor);
     //Final Color
     finalColor = directionLightColor;
-    inputPixel.tex.x += vWaterTime.x / 100.0f;
-    inputPixel.tex.y += vWaterTime.x / 100.0f;
+    //inputPixel.tex.x += vWaterTime.x / 100.0f;
+    //inputPixel.tex.y += vWaterTime.x / 100.0f;
     finalColor *= Diffuse.Sample(samLinear, inputPixel.tex);
     finalColor.a = 1.0f;
     

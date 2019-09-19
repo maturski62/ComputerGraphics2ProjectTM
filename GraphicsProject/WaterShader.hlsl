@@ -36,7 +36,7 @@ OutputVertex main(InputVertex input)
     float frequency = 0.1f; //Distance between wave peaks
     float2 planePos = float2(output.pos.x, output.pos.z);
     float dotProduct = dot(float2(1, 1), planePos);
-    output.pos.y += amplitude * sin((dotProduct * frequency) + waveTime.x);
+    //output.pos.y += amplitude * sin((dotProduct * frequency) + waveTime.x);
 
 	// Do math here (shader intrinsics)
     output.localPos = output.pos;

@@ -28,6 +28,8 @@ cbuffer PSConstantBuffer : register(b1)
 
 float4 main(OutputVertex inputPixel) : SV_TARGET
 {
+    //ScreenWarp
+
     if(drawingSkybox.x > 0)
     {
         float3 localPixelPos;
@@ -46,22 +48,22 @@ float4 main(OutputVertex inputPixel) : SV_TARGET
     float attenuation = 0;
 
     //Center Point Light
-    float4 pointLightDir = normalize(vPointLightPos - inputPixel.worldPos);
-    float amountOfPointLight = dot(pointLightDir, float4(inputPixel.nrm, 0));
-    attenuation = 1.0f - saturate(length(vPointLightPos - inputPixel.worldPos) / pointLightRange);
-    attenuation *= attenuation;
-    pointLightColor = (amountOfPointLight * vPointLightColor) * attenuation;
+    //float4 pointLightDir = normalize(vPointLightPos - inputPixel.worldPos);
+    //float amountOfPointLight = dot(pointLightDir, float4(inputPixel.nrm, 0));
+    //attenuation = 1.0f - saturate(length(vPointLightPos - inputPixel.worldPos) / pointLightRange);
+    //attenuation *= attenuation;
+    //pointLightColor = (amountOfPointLight * vPointLightColor) * attenuation;
 
     //Spot Light
-    float4 spotLightDir = normalize(vSpotLightPos - inputPixel.worldPos);
-    float surfaceRatio = dot(-spotLightDir, vSpotLightDir);
-    float amountOfSpotLight = dot(spotLightDir, float4(inputPixel.nrm, 0));
-    float innerAngle = vSpotLightConeRatio.x;
-    float outerAngle = vSpotLightConeRatio.x - 0.05f;
-    attenuation = 1.0f - saturate(length(vSpotLightPos - inputPixel.worldPos) / spotLightRange);
-    attenuation *= 1.0f - saturate((innerAngle - surfaceRatio) / (innerAngle - outerAngle));
-    attenuation *= attenuation;
-    spotLightColor = (amountOfSpotLight * vSpotLightColor) * attenuation;
+    //float4 spotLightDir = normalize(vSpotLightPos - inputPixel.worldPos);
+    //float surfaceRatio = dot(-spotLightDir, vSpotLightDir);
+    //float amountOfSpotLight = dot(spotLightDir, float4(inputPixel.nrm, 0));
+    //float innerAngle = vSpotLightConeRatio.x;
+    //float outerAngle = vSpotLightConeRatio.x - 0.05f;
+    //attenuation = 1.0f - saturate(length(vSpotLightPos - inputPixel.worldPos) / spotLightRange);
+    //attenuation *= 1.0f - saturate((innerAngle - surfaceRatio) / (innerAngle - outerAngle));
+    //attenuation *= attenuation;
+    //spotLightColor = (amountOfSpotLight * vSpotLightColor) * attenuation;
 
     //Directional Light
     directionLightColor += saturate(dot(vLightDir, float4(inputPixel.nrm, 0)) * vLightColor);
