@@ -20,10 +20,6 @@ using namespace std;
 #include "PixelMeshShader.csh"
 #include "WaterPixelShader.csh"
 
-//Mesh Files
-#include "Assets/StoneHenge.h"
-#include "Assets/barrels.h"
-
 //For Init
 ID3D11Device* myDevice;
 IDXGISwapChain* mySwapChain;
@@ -58,17 +54,22 @@ struct SimpleMesh
 };
 
 //Models
-MyVertex* waterPlane = new MyVertex[2500];
-unsigned int waterPlaneIndicesArray[726];
+MyVertex* waterPlane = new MyVertex[725];
 unsigned int numWaterVertices = 0;
+MyVertex* sandPlane = new MyVertex[725];
+unsigned int numSandVertices = 0;
 MyVertex* skybox = new MyVertex[36];
 unsigned int skyboxIndices[36];
 unsigned int numSkyboxVertices = 0;
 //OBJ Models
 MyVertex* islandArray = new MyVertex[13476];
-unsigned int islandIndices[13476];
+unsigned int* islandIndicesArray = new unsigned int[13476];
 unsigned int numIslandVertices = 0;
 unsigned int numIslandIndices = 0;
+MyVertex* pirateArray = new MyVertex[5562];
+unsigned int* pirateIndicesArray = new unsigned int[5562];
+unsigned int numPirateVertices = 0;
+unsigned int numPirateIndices = 0;
 
 //Screen Varibales
 float screenWidth;
@@ -94,18 +95,25 @@ ID3D11Buffer* constantBuffer;
 ID3D11Buffer* lightConstantBuffer;
 ID3D11SamplerState* samplerLinear;
 ID3D11ShaderResourceView* waterTex;
+ID3D11ShaderResourceView* sandTex;
 ID3D11ShaderResourceView* skyboxTex;
 ID3D11ShaderResourceView* islandTex;
+ID3D11ShaderResourceView* pirateTex;
 
 //Mesh data
 //Water
 ID3D11Buffer* waterVertexBuffer;
+//Sand
+ID3D11Buffer* sandVertexBuffer;
 //Skybox
 ID3D11Buffer* skyBoxVertexBuffer;
 ID3D11Buffer* skyBoxIndicesBuffer;
 //Island
 ID3D11Buffer* islandVertexBuffer;
 ID3D11Buffer* islandIndicesBuffer;
+//Pirate
+ID3D11Buffer* pirateVertexBuffer;
+ID3D11Buffer* pirateIndicesBuffer;
 ID3D11InputLayout* vertexMeshLayout;
 ID3D11VertexShader* vertexMeshShader;
 ID3D11PixelShader* pixelMeshShader;
@@ -157,10 +165,10 @@ INT_PTR CALLBACK    About(HWND, UINT, WPARAM, LPARAM);
 void UploadToVideoCard();
 void Render();
 void ReleaseInterfaces();
-void CreateWaterPlane();
+unsigned int CreatePlane(MyVertex* array);
 void CreateSkyBox();
 void LoadDotMesh(const char* meshFileName, SimpleMesh& mesh);
-bool LoadOBJ(const char* meshFileName, SimpleOBJ& objMesh);
+bool LoadOBJ(const char* meshFileName, SimpleOBJ& objMesh, MyVertex* vertArray, unsigned int* indicesArray, unsigned int* numVerts, unsigned int* numIndices);
 void MakeLights();
 
 int APIENTRY wWinMain(_In_ HINSTANCE hInstance,
@@ -329,15 +337,18 @@ BOOL InitInstance(HINSTANCE hInstance, int nCmdShow)
 	hr = myDevice->CreateBuffer(&bDesc, nullptr, &lightConstantBuffer);
 
 	//Create Water and Skybox
-	CreateWaterPlane();
+	numWaterVertices = CreatePlane(waterPlane);
+	numSandVertices = CreatePlane(sandPlane);
 	CreateSkyBox();
 
 	//Creating Texture
 	if (myDevice)
 	{
 		hr = CreateDDSTextureFromFile(myDevice, L"Assets/water.dds", nullptr, &waterTex);
+		hr = CreateDDSTextureFromFile(myDevice, L"Assets/sandTex.dds", nullptr, &sandTex);
 		hr = CreateDDSTextureFromFile(myDevice, L"Assets/SkyboxOcean.dds", nullptr, &skyboxTex);
 		hr = CreateDDSTextureFromFile(myDevice, L"Assets/islandTex.dds", nullptr, &islandTex);
+		hr = CreateDDSTextureFromFile(myDevice, L"Assets/pirateTex.dds", nullptr, &pirateTex);
 	}
 
 	//Time for the wave
@@ -363,10 +374,20 @@ BOOL InitInstance(HINSTANCE hInstance, int nCmdShow)
 	subData.pSysMem = waterPlane;
 	hr = myDevice->CreateBuffer(&bDesc, &subData, &waterVertexBuffer);
 
+	//Load Sand
+	bDesc.BindFlags = D3D11_BIND_VERTEX_BUFFER;
+	bDesc.ByteWidth = sizeof(MyVertex) * numSandVertices;
+	bDesc.CPUAccessFlags = 0;
+	bDesc.MiscFlags = 0;
+	bDesc.StructureByteStride = 0;
+	bDesc.Usage = D3D11_USAGE_IMMUTABLE;
+	subData.pSysMem = sandPlane;
+	hr = myDevice->CreateBuffer(&bDesc, &subData, &sandVertexBuffer);
+
 	//Load Island
-	const char* island = "Assets/island.obj";
-	SimpleOBJ islandOBJ;
-	LoadOBJ(island, islandOBJ);
+	const char* filename = "Assets/island.obj";
+	SimpleOBJ OBJIsland;
+	LoadOBJ(filename, OBJIsland, islandArray, islandIndicesArray, &numIslandVertices, &numIslandIndices);
 	bDesc.BindFlags = D3D11_BIND_VERTEX_BUFFER;
 	bDesc.ByteWidth = sizeof(MyVertex) * numIslandVertices;
 	bDesc.CPUAccessFlags = 0;
@@ -378,8 +399,26 @@ BOOL InitInstance(HINSTANCE hInstance, int nCmdShow)
 	//index buffer mesh
 	bDesc.BindFlags = D3D11_BIND_INDEX_BUFFER;
 	bDesc.ByteWidth = sizeof(unsigned int) * numIslandIndices;
-	subData.pSysMem = islandIndices;
+	subData.pSysMem = islandIndicesArray;
 	hr = myDevice->CreateBuffer(&bDesc, &subData, &islandIndicesBuffer);
+
+	//Load Pirate
+	filename = "Assets/pirate.obj";
+	SimpleOBJ OBJPirate;
+	LoadOBJ(filename, OBJPirate, pirateArray, pirateIndicesArray, &numPirateVertices, &numPirateIndices);
+	bDesc.BindFlags = D3D11_BIND_VERTEX_BUFFER;
+	bDesc.ByteWidth = sizeof(MyVertex) * numPirateVertices;
+	bDesc.CPUAccessFlags = 0;
+	bDesc.MiscFlags = 0;
+	bDesc.StructureByteStride = 0;
+	bDesc.Usage = D3D11_USAGE_IMMUTABLE;
+	subData.pSysMem = pirateArray;
+	hr = myDevice->CreateBuffer(&bDesc, &subData, &pirateVertexBuffer);
+	//index buffer mesh
+	bDesc.BindFlags = D3D11_BIND_INDEX_BUFFER;
+	bDesc.ByteWidth = sizeof(unsigned int) * numPirateIndices;
+	subData.pSysMem = pirateIndicesArray;
+	hr = myDevice->CreateBuffer(&bDesc, &subData, &pirateIndicesBuffer);
 
 	//Load new mesh shader
 	hr = myDevice->CreateVertexShader(VertexMeshShader, sizeof(VertexMeshShader), nullptr, &vertexMeshShader);
@@ -586,16 +625,37 @@ void Render()
 	UploadToVideoCard();
 	myDeviceContext->DrawIndexed(numIslandIndices, 0, 0);
 
+	//Draw Pirate
+	tempMeshVertexBuffer = pirateVertexBuffer;
+	myDeviceContext->IASetVertexBuffers(0, 1, &tempMeshVertexBuffer, meshStrides, meshOffsets);
+	myDeviceContext->IASetIndexBuffer(pirateIndicesBuffer, DXGI_FORMAT_R32_UINT, 0);
+	myDeviceContext->VSSetShader(vertexMeshShader, nullptr, 0);
+	myDeviceContext->PSSetShader(pixelMeshShader, nullptr, 0);
+	myDeviceContext->PSSetShaderResources(0, 1, &pirateTex);
+	XMMATRIX pirateMatrix = XMMatrixTranslation(0.0f, 5.0f, 0.0f);
+	XMStoreFloat4x4(&myMatrices.worldMatrix, pirateMatrix);
+	UploadToVideoCard();
+	myDeviceContext->DrawIndexed(numPirateIndices, 0, 0);
+
+	//Draw Sand
+	tempMeshVertexBuffer = sandVertexBuffer;
+	myDeviceContext->IASetVertexBuffers(0, 1, &tempMeshVertexBuffer, meshStrides, meshOffsets);
+	myDeviceContext->PSSetShaderResources(0, 1, &sandTex);
+	XMMATRIX sandMatrix = XMMatrixTranslation(-100.0f, -1.0f, -100.0f);
+	XMStoreFloat4x4(&myMatrices.worldMatrix, sandMatrix);
+	UploadToVideoCard();
+	myDeviceContext->Draw(numSandVertices, 0);
+
 	//Draw Water
 	tempMeshVertexBuffer = waterVertexBuffer;
 	myDeviceContext->IASetVertexBuffers(0, 1, &tempMeshVertexBuffer, meshStrides, meshOffsets);
 	myDeviceContext->VSSetShader(waterShader, nullptr, 0);
 	myDeviceContext->PSSetShader(waterPixelShader, nullptr, 0);
 	myDeviceContext->PSSetShaderResources(0, 1, &waterTex);
-	XMMATRIX waterMatrix = XMMatrixTranslation(-50.0f, -1.0f, -50.0f);
+	XMMATRIX waterMatrix = XMMatrixTranslation(-100.0f, 0.0f, -100.0f);
 	XMStoreFloat4x4(&myMatrices.worldMatrix, waterMatrix);
 	static float wavePixelTime = 0.0f; wavePixelTime += 0.01f;
-	XMVECTOR tempWaterTime = { wavePixelTime, 0.0f, 0.0f, 0.0f };
+	XMVECTOR tempWaterTime = { wavePixelTime, 0.0f, 0.5f, 0.0f };
 	XMStoreFloat4(&myLights.vWaterTime, tempWaterTime);
 	UploadToVideoCard();
 	myDeviceContext->Draw(numWaterVertices, 0);
@@ -607,8 +667,10 @@ void Render()
 void ReleaseInterfaces()
 {
 	waterTex->Release();
+	sandTex->Release();
 	skyboxTex->Release();
 	islandTex->Release();
+	pirateTex->Release();
 	lightConstantBuffer->Release();
 	samplerLinear->Release();
 	zBuffer->Release();
@@ -623,6 +685,9 @@ void ReleaseInterfaces()
 	skyBoxVertexBuffer->Release();
 	islandVertexBuffer->Release();
 	islandIndicesBuffer->Release();
+	sandVertexBuffer->Release();
+	pirateVertexBuffer->Release();
+	pirateIndicesBuffer->Release();
 	constantBuffer->Release();
 	myDeviceContext->Release();
 	mySwapChain->Release();
@@ -648,38 +713,13 @@ void UploadToVideoCard()
 	myDeviceContext->PSSetConstantBuffers(0, ARRAYSIZE(constants), constants);
 }
 
-//void CreateStoneHenge() 
-//{
-//	for (size_t i = 0; i < ARRAYSIZE(StoneHenge_data); i++)
-//	{
-//		//Set POSITION
-//		stoneHenge[i].position.x = StoneHenge_data[i].pos[0];
-//		stoneHenge[i].position.y = StoneHenge_data[i].pos[1];
-//		stoneHenge[i].position.z = StoneHenge_data[i].pos[2];
-//		stoneHenge[i].position.w = 1.0f;
-//		//Set UV
-//		stoneHenge[i].texture.x = StoneHenge_data[i].uvw[0];
-//		stoneHenge[i].texture.y = StoneHenge_data[i].uvw[1];
-//		//SET NORMAL
-//		stoneHenge[i].normal.x = StoneHenge_data[i].nrm[0];
-//		stoneHenge[i].normal.y = StoneHenge_data[i].nrm[1];
-//		stoneHenge[i].normal.z = StoneHenge_data[i].nrm[2];
-//	}
-//
-//	for (size_t i = 0; i < ARRAYSIZE(StoneHenge_indicies); i++)
-//	{
-//		stoneHengeIndices[i] = StoneHenge_indicies[i];
-//	}
-//}
-
-
-void CreateWaterPlane()
+unsigned int CreatePlane(MyVertex* vertArray)
 {
 	int amountOfVertices = 121;
 	int index = 0;
 	int ratioDivider = sqrt(amountOfVertices) - 1;
 	int size = static_cast<int>(sqrt(amountOfVertices));
-	float spacing = 10.0f;
+	float spacing = 20.0f;
 	float xPos = 0.0f;
 	float xuRatio = 0.0f;
 	float zPos = 0.0f;
@@ -706,41 +746,41 @@ void CreateWaterPlane()
 
 			//Bottom Left Triangle
 			//Bottom Left Vertex
-			waterPlane[index].position = { xPos, yPos, zPos, 1.0f };
-			waterPlane[index].texture = { xuRatio, zvRatio };
-			waterPlane[index].normal = { 0.0f, 1.0f, 0.0f };
+			vertArray[index].position = { xPos, yPos, zPos, 1.0f };
+			vertArray[index].texture = { xuRatio, zvRatio };
+			vertArray[index].normal = { 0.0f, 1.0f, 0.0f };
 			index++;
 			//Top Left Vertex
 			zvRatio = (static_cast<float>(z) + 1.0f) / (size - 1);
-			waterPlane[index].position = { xPos, yPos, zPos + spacing, 1.0f };
-			waterPlane[index].texture = { xuRatio, zvRatio };
-			waterPlane[index].normal = { 0.0f, 1.0f, 0.0f };
+			vertArray[index].position = { xPos, yPos, zPos + spacing, 1.0f };
+			vertArray[index].texture = { xuRatio, zvRatio };
+			vertArray[index].normal = { 0.0f, 1.0f, 0.0f };
 			index++;
 			//Bottom Right Vertex
 			xuRatio = (static_cast<float>(x) + 1.0f) / (size - 1);
 			zvRatio = static_cast<float>(z) / (size - 1);
-			waterPlane[index].position = { xPos + spacing, yPos, zPos, 1.0f };
-			waterPlane[index].texture = { xuRatio, zvRatio };
-			waterPlane[index].normal = { 0.0f, 1.0f, 0.0f };
+			vertArray[index].position = { xPos + spacing, yPos, zPos, 1.0f };
+			vertArray[index].texture = { xuRatio, zvRatio };
+			vertArray[index].normal = { 0.0f, 1.0f, 0.0f };
 			index++;
 
 			//Top Right Triangle
 			//Bottom Right Vertex
-			waterPlane[index] = waterPlane[index - 1];
+			vertArray[index] = vertArray[index - 1];
 			index++;
 			//Top Left Vertex
-			waterPlane[index] = waterPlane[index - 3];
+			vertArray[index] = vertArray[index - 3];
 			index++;
 			//Top Right Vertex
 			xuRatio = (static_cast<float>(x) + 1.0f) / (size - 1);
 			zvRatio = (static_cast<float>(z) + 1.0f) / (size - 1);
-			waterPlane[index].position = { xPos + spacing, yPos, zPos + spacing, 1.0f };
-			waterPlane[index].texture = { xuRatio, zvRatio };
-			waterPlane[index].normal = { 0.0f, 1.0f, 0.0f };
+			vertArray[index].position = { xPos + spacing, yPos, zPos + spacing, 1.0f };
+			vertArray[index].texture = { xuRatio, zvRatio };
+			vertArray[index].normal = { 0.0f, 1.0f, 0.0f };
 			index++;
 		}
 	}
-	numWaterVertices = index;
+	return index;
 }
 
 void CreateSkyBox()
@@ -828,7 +868,7 @@ void LoadDotMesh(const char* meshFileName, SimpleMesh& mesh)
 	file.close();
 }
 
-bool LoadOBJ(const char* meshFileName, SimpleOBJ& objMesh)
+bool LoadOBJ(const char* meshFileName, SimpleOBJ& objMesh, MyVertex* vertArray, unsigned int* indicesArray, unsigned int* numVerts, unsigned int* numIndices)
 {
 	vector<unsigned int> vertexIndices, uvIndices, normalIndices;
 	vector<MyVec3> tempVertices;
@@ -916,19 +956,19 @@ bool LoadOBJ(const char* meshFileName, SimpleOBJ& objMesh)
 		objMesh.indicesList.push_back(i);
 	}
 
-	numIslandVertices = objMesh.vertexList.size();
-	numIslandIndices = objMesh.indicesList.size();
+	*numVerts = objMesh.vertexList.size();
+	*numIndices = objMesh.indicesList.size();
 
 	//Populate Vertex Array
 	for (unsigned int i = 0; i < objMesh.vertexList.size(); i++)
 	{
-		islandArray[i] = objMesh.vertexList[i];
+		vertArray[i] = objMesh.vertexList[i];
 	}
 
 	//Populate Indices Array
 	for (unsigned int i = 0; i < objMesh.indicesList.size(); i++)
 	{
-		islandIndices[i] = objMesh.indicesList[i];
+		indicesArray[i] = objMesh.indicesList[i];
 	}
 }
 

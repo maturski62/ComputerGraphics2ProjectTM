@@ -1,0 +1,14 @@
+newmtl FirstMate_Weights:lambert3SG
+illum 4
+Kd 0.00 0.00 0.00
+Ka 0.00 0.00 0.00
+Tf 1.00 1.00 1.00
+map_Kd PVP_FirstMate_Texture.png
+Ni 1.00
+newmtl Weapon:Firstmate_Weapons:PVP_PlayerCutlass:lambert5SG
+illum 4
+Kd 0.00 0.00 0.00
+Ka 0.00 0.00 0.00
+Tf 1.00 1.00 1.00
+map_Kd PVP_PlayerCutlass_Texture.png
+Ni 1.00

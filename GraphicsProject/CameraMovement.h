@@ -8,7 +8,7 @@ XMVECTOR DefaultUp = XMVectorSet(0.0f, 1.0f, 0.0f, 0.0f);
 XMVECTOR camForward = XMVectorSet(0.0f, 0.0f, 1.0f, 0.0f);
 XMVECTOR camRight = XMVectorSet(1.0f, 0.0f, 0.0f, 0.0f);
 XMVECTOR camUp = XMVectorSet(0.0f, 1.0f, 0.0f, 0.0f);
-XMVECTOR camPosition;
+XMVECTOR camPosition = XMVectorSet(-20.0f, 25.0f, -30.0f, 1.0f);
 XMVECTOR camTarget;
 
 XMMATRIX camRotationMatrix;
@@ -55,6 +55,10 @@ void UpdateCam()
 	camPosition += moveLeftRight * camRight;
 	//Y
 	camPosition += moveUpDown * camUp;
+	if (XMVectorGetY(camPosition) < 0.5f)
+	{
+		camPosition = { XMVectorGetX(camPosition), 0.5f, XMVectorGetZ(camPosition), 1.0f };
+	}
 	//Z
 	camPosition += moveBackForward * camForward;
 	
