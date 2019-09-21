@@ -1,0 +1,26 @@
+#
+#
+#
+
+newmtl smallBoat:DSMesh_0_0 Mesh_initialShadingGroup
+illum 2
+Ka 0.000000 0.000000 0.000000
+Kd 0.500000 0.500000 0.500000
+Ks 0.000000 0.000000 0.000000
+Ns 0.000000
+
+newmtl smallBoat:DSMesh_1_1 Mesh_lambert2SG
+illum 2
+Ka 0.000000 0.000000 0.000000
+Kd 0.000000 0.000000 0.000000
+Ks 0.000000 0.000000 0.000000
+Ns 0.000000
+map_Kd boattex.jpg
+
+newmtl smallBoat:DSMesh_2_2 Mesh_initialShadingGroup
+illum 2
+Ka 0.000000 0.000000 0.000000
+Kd 0.500000 0.500000 0.500000
+Ks 0.000000 0.000000 0.000000
+Ns 0.000000
+

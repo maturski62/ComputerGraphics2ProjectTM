@@ -70,6 +70,14 @@ MyVertex* pirateArray = new MyVertex[5562];
 unsigned int* pirateIndicesArray = new unsigned int[5562];
 unsigned int numPirateVertices = 0;
 unsigned int numPirateIndices = 0;
+MyVertex* longDockArray = new MyVertex[11136];
+unsigned int* longDockIndicesArray = new unsigned int[11136];
+unsigned int numLongDockVertices = 0;
+unsigned int numLongDockIndices = 0;
+MyVertex* boatArray = new MyVertex[11136];
+unsigned int* boatIndicesArray = new unsigned int[11136];
+unsigned int numBoatVertices = 0;
+unsigned int numBoatIndices = 0;
 
 //Screen Varibales
 float screenWidth;
@@ -99,6 +107,8 @@ ID3D11ShaderResourceView* sandTex;
 ID3D11ShaderResourceView* skyboxTex;
 ID3D11ShaderResourceView* islandTex;
 ID3D11ShaderResourceView* pirateTex;
+ID3D11ShaderResourceView* dockTex;
+ID3D11ShaderResourceView* boatTex;
 
 //Mesh data
 //Water
@@ -114,6 +124,12 @@ ID3D11Buffer* islandIndicesBuffer;
 //Pirate
 ID3D11Buffer* pirateVertexBuffer;
 ID3D11Buffer* pirateIndicesBuffer;
+//Long Dock
+ID3D11Buffer* longDockVertexBuffer;
+ID3D11Buffer* longDockIndicesBuffer;
+//Small Boat
+ID3D11Buffer* boatVertexBuffer;
+ID3D11Buffer* boatIndicesBuffer;
 ID3D11InputLayout* vertexMeshLayout;
 ID3D11VertexShader* vertexMeshShader;
 ID3D11PixelShader* pixelMeshShader;
@@ -132,6 +148,7 @@ struct WVPMatrix
 	XMFLOAT4X4 projMatrix;
 	XMFLOAT4 waveTime;
 	XMFLOAT4 waveSpeed;
+	XMFLOAT4 drawingBoat;
 }myMatrices;
 
 struct Lights
@@ -349,6 +366,8 @@ BOOL InitInstance(HINSTANCE hInstance, int nCmdShow)
 		hr = CreateDDSTextureFromFile(myDevice, L"Assets/SkyboxOcean.dds", nullptr, &skyboxTex);
 		hr = CreateDDSTextureFromFile(myDevice, L"Assets/islandTex.dds", nullptr, &islandTex);
 		hr = CreateDDSTextureFromFile(myDevice, L"Assets/pirateTex.dds", nullptr, &pirateTex);
+		hr = CreateDDSTextureFromFile(myDevice, L"Assets/dockTex.dds", nullptr, &dockTex);
+		hr = CreateDDSTextureFromFile(myDevice, L"Assets/boatTex.dds", nullptr, &boatTex);
 	}
 
 	//Time for the wave
@@ -419,6 +438,40 @@ BOOL InitInstance(HINSTANCE hInstance, int nCmdShow)
 	bDesc.ByteWidth = sizeof(unsigned int) * numPirateIndices;
 	subData.pSysMem = pirateIndicesArray;
 	hr = myDevice->CreateBuffer(&bDesc, &subData, &pirateIndicesBuffer);
+
+	filename = "Assets/longDock.obj";
+	SimpleOBJ OBJLongDock;
+	LoadOBJ(filename, OBJLongDock, longDockArray, longDockIndicesArray, &numLongDockVertices, &numLongDockIndices);
+	bDesc.BindFlags = D3D11_BIND_VERTEX_BUFFER;
+	bDesc.ByteWidth = sizeof(MyVertex) * numLongDockVertices;
+	bDesc.CPUAccessFlags = 0;
+	bDesc.MiscFlags = 0;
+	bDesc.StructureByteStride = 0;
+	bDesc.Usage = D3D11_USAGE_IMMUTABLE;
+	subData.pSysMem = longDockArray;
+	hr = myDevice->CreateBuffer(&bDesc, &subData, &longDockVertexBuffer);
+	//index buffer mesh
+	bDesc.BindFlags = D3D11_BIND_INDEX_BUFFER;
+	bDesc.ByteWidth = sizeof(unsigned int) * numLongDockIndices;
+	subData.pSysMem = longDockIndicesArray;
+	hr = myDevice->CreateBuffer(&bDesc, &subData, &longDockIndicesBuffer);
+
+	filename = "Assets/smallBoat.obj";
+	SimpleOBJ OBJBoat;
+	LoadOBJ(filename, OBJBoat, boatArray, boatIndicesArray, &numBoatVertices, &numBoatIndices);
+	bDesc.BindFlags = D3D11_BIND_VERTEX_BUFFER;
+	bDesc.ByteWidth = sizeof(MyVertex) * numBoatVertices;
+	bDesc.CPUAccessFlags = 0;
+	bDesc.MiscFlags = 0;
+	bDesc.StructureByteStride = 0;
+	bDesc.Usage = D3D11_USAGE_IMMUTABLE;
+	subData.pSysMem = boatArray;
+	hr = myDevice->CreateBuffer(&bDesc, &subData, &boatVertexBuffer);
+	//index buffer mesh
+	bDesc.BindFlags = D3D11_BIND_INDEX_BUFFER;
+	bDesc.ByteWidth = sizeof(unsigned int) * numBoatIndices;
+	subData.pSysMem = boatIndicesArray;
+	hr = myDevice->CreateBuffer(&bDesc, &subData, &boatIndicesBuffer);
 
 	//Load new mesh shader
 	hr = myDevice->CreateVertexShader(VertexMeshShader, sizeof(VertexMeshShader), nullptr, &vertexMeshShader);
@@ -617,8 +670,6 @@ void Render()
 	tempMeshVertexBuffer = islandVertexBuffer;
 	myDeviceContext->IASetVertexBuffers(0, 1, &tempMeshVertexBuffer, meshStrides, meshOffsets);
 	myDeviceContext->IASetIndexBuffer(islandIndicesBuffer, DXGI_FORMAT_R32_UINT, 0);
-	myDeviceContext->VSSetShader(vertexMeshShader, nullptr, 0);
-	myDeviceContext->PSSetShader(pixelMeshShader, nullptr, 0);
 	myDeviceContext->PSSetShaderResources(0, 1, &islandTex);
 	XMMATRIX islandMatrix = XMMatrixTranslation(0.0f, 0.0f, 0.0f);
 	XMStoreFloat4x4(&myMatrices.worldMatrix, islandMatrix);
@@ -629,13 +680,23 @@ void Render()
 	tempMeshVertexBuffer = pirateVertexBuffer;
 	myDeviceContext->IASetVertexBuffers(0, 1, &tempMeshVertexBuffer, meshStrides, meshOffsets);
 	myDeviceContext->IASetIndexBuffer(pirateIndicesBuffer, DXGI_FORMAT_R32_UINT, 0);
-	myDeviceContext->VSSetShader(vertexMeshShader, nullptr, 0);
-	myDeviceContext->PSSetShader(pixelMeshShader, nullptr, 0);
 	myDeviceContext->PSSetShaderResources(0, 1, &pirateTex);
-	XMMATRIX pirateMatrix = XMMatrixTranslation(0.0f, 5.0f, 0.0f);
+	XMMATRIX pirateMatrix = XMMatrixTranslation(25.0f, 1.45f, -15.0f);
+	XMMATRIX rotation = XMMatrixRotationY(135);
+	pirateMatrix = XMMatrixMultiply(rotation, pirateMatrix);
 	XMStoreFloat4x4(&myMatrices.worldMatrix, pirateMatrix);
 	UploadToVideoCard();
 	myDeviceContext->DrawIndexed(numPirateIndices, 0, 0);
+
+	//Draw Long Dock
+	tempMeshVertexBuffer = longDockVertexBuffer;
+	myDeviceContext->IASetVertexBuffers(0, 1, &tempMeshVertexBuffer, meshStrides, meshOffsets);
+	myDeviceContext->IASetIndexBuffer(longDockIndicesBuffer, DXGI_FORMAT_R32_UINT, 0);
+	myDeviceContext->PSSetShaderResources(0, 1, &dockTex);
+	XMMATRIX longDockMatrix = XMMatrixTranslation(32.5f, 1.0f, -30.0f);
+	XMStoreFloat4x4(&myMatrices.worldMatrix, longDockMatrix);
+	UploadToVideoCard();
+	myDeviceContext->DrawIndexed(numLongDockIndices, 0, 0);
 
 	//Draw Sand
 	tempMeshVertexBuffer = sandVertexBuffer;
@@ -657,8 +718,21 @@ void Render()
 	static float wavePixelTime = 0.0f; wavePixelTime += 0.01f;
 	XMVECTOR tempWaterTime = { wavePixelTime, 0.0f, 0.5f, 0.0f };
 	XMStoreFloat4(&myLights.vWaterTime, tempWaterTime);
+	XMStoreFloat4(&myMatrices.drawingBoat, { -1.0f });
 	UploadToVideoCard();
 	myDeviceContext->Draw(numWaterVertices, 0);
+
+	//Draw Small Boat
+	tempMeshVertexBuffer = boatVertexBuffer;
+	myDeviceContext->IASetVertexBuffers(0, 1, &tempMeshVertexBuffer, meshStrides, meshOffsets);
+	myDeviceContext->IASetIndexBuffer(boatIndicesBuffer, DXGI_FORMAT_R32_UINT, 0);
+	myDeviceContext->PSSetShader(pixelMeshShader, nullptr, 0);
+	myDeviceContext->PSSetShaderResources(0, 1, &boatTex);
+	XMMATRIX boatMatrix = XMMatrixTranslation(42.0f, 0.1f, -34.0f);
+	XMStoreFloat4x4(&myMatrices.worldMatrix, boatMatrix);
+	XMStoreFloat4(&myMatrices.drawingBoat, { 1.0f });
+	UploadToVideoCard();
+	myDeviceContext->DrawIndexed(numBoatIndices, 0, 0);
 
 
 	mySwapChain->Present(1, 0);
@@ -671,6 +745,8 @@ void ReleaseInterfaces()
 	skyboxTex->Release();
 	islandTex->Release();
 	pirateTex->Release();
+	dockTex->Release();
+	boatTex->Release();
 	lightConstantBuffer->Release();
 	samplerLinear->Release();
 	zBuffer->Release();
@@ -688,6 +764,10 @@ void ReleaseInterfaces()
 	sandVertexBuffer->Release();
 	pirateVertexBuffer->Release();
 	pirateIndicesBuffer->Release();
+	longDockVertexBuffer->Release();
+	longDockIndicesBuffer->Release();
+	boatVertexBuffer->Release();
+	boatIndicesBuffer->Release();
 	constantBuffer->Release();
 	myDeviceContext->Release();
 	mySwapChain->Release();

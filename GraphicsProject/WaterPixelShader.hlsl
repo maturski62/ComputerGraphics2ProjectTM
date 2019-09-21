@@ -30,7 +30,7 @@ float4 main(OutputVertex inputPixel) : SV_TARGET
     //inputPixel.tex.x += vWaterTime.x / 100.0f;
     //inputPixel.tex.y += vWaterTime.x / 100.0f;
     finalColor *= Diffuse.Sample(samLinear, inputPixel.tex);
-    finalColor.a = 1.0f;
+    finalColor.a = 0.1f;
     
     return finalColor;
 }

@@ -23,6 +23,7 @@ cbuffer CONSTANT_BUFFER : register(b0)
     float4x4 projMatrix;
     float4 waveTime;
     float4 waveSpeed;
+    float4 drawingBoat;
 }
 
 OutputVertex main(InputVertex input)
@@ -32,13 +33,26 @@ OutputVertex main(InputVertex input)
     output.tex = input.tex;
     output.nrm = input.nrm;
 
-    float amplitude = 0.75f; //Wave height
-    float frequency = 0.1f; //Distance between wave peaks
-    float2 planePos = float2(output.pos.x, output.pos.z);
-    float dotProduct = dot(float2(1, 1), planePos);
-    output.pos.y += amplitude * sin((dotProduct * frequency) + waveTime.x);
-    output.nrm.x -= amplitude * frequency * cos(dotProduct * frequency + waveTime.x);
-    output.nrm.z -= amplitude * frequency * cos(dotProduct * frequency + waveTime.x);
+    if(drawingBoat.x > 0)
+    {
+        float amplitude = 0.45f; //Wave height
+        float frequency = 0.1f; //Distance between wave peaks
+        float2 planePos = float2(output.pos.x, output.pos.z);
+        float dotProduct = dot(float2(1, 1), planePos);
+        output.pos.y += amplitude * cos((dotProduct * frequency) + waveTime.x);
+        //output.nrm.x -= amplitude * frequency * cos(dotProduct * frequency + waveTime.x);
+        //output.nrm.z -= amplitude * frequency * cos(dotProduct * frequency + waveTime.x);
+    }
+    else
+    {
+        float amplitude = 0.75f; //Wave height
+        float frequency = 0.1f; //Distance between wave peaks
+        float2 planePos = float2(output.pos.x, output.pos.z);
+        float dotProduct = dot(float2(1, 1), planePos);
+        output.pos.y += amplitude * sin((dotProduct * frequency) + waveTime.x);
+        output.nrm.x -= amplitude * frequency * cos(dotProduct * frequency + waveTime.x);
+        output.nrm.z -= amplitude * frequency * cos(dotProduct * frequency + waveTime.x);
+    }
 
 	// Do math here (shader intrinsics)
     output.localPos = output.pos;
