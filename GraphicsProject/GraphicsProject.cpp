@@ -64,20 +64,19 @@ unsigned int numSkyboxVertices = 0;
 //OBJ Models
 MyVertex* islandArray = new MyVertex[13476];
 unsigned int* islandIndicesArray = new unsigned int[13476];
-unsigned int numIslandVertices = 0;
 unsigned int numIslandIndices = 0;
 MyVertex* pirateArray = new MyVertex[5562];
 unsigned int* pirateIndicesArray = new unsigned int[5562];
-unsigned int numPirateVertices = 0;
 unsigned int numPirateIndices = 0;
 MyVertex* longDockArray = new MyVertex[11136];
 unsigned int* longDockIndicesArray = new unsigned int[11136];
-unsigned int numLongDockVertices = 0;
 unsigned int numLongDockIndices = 0;
-MyVertex* boatArray = new MyVertex[11136];
-unsigned int* boatIndicesArray = new unsigned int[11136];
-unsigned int numBoatVertices = 0;
+MyVertex* boatArray = new MyVertex[2094];
+unsigned int* boatIndicesArray = new unsigned int[2094];
 unsigned int numBoatIndices = 0;
+MyVertex* barrelArray = new MyVertex[2094];
+unsigned int* barrelIndicesArray = new unsigned int[2094];
+unsigned int numBarrelIndices = 0;
 
 //Screen Varibales
 float screenWidth;
@@ -85,7 +84,6 @@ float screenHeight;
 
 //Wave Variables
 XMFLOAT4 waveTime;
-XMVECTOR waveSpeed;
 
 //Light
 XMVECTOR lightDir;
@@ -109,6 +107,7 @@ ID3D11ShaderResourceView* islandTex;
 ID3D11ShaderResourceView* pirateTex;
 ID3D11ShaderResourceView* dockTex;
 ID3D11ShaderResourceView* boatTex;
+ID3D11ShaderResourceView* barrelTex;
 
 //Mesh data
 //Water
@@ -130,6 +129,9 @@ ID3D11Buffer* longDockIndicesBuffer;
 //Small Boat
 ID3D11Buffer* boatVertexBuffer;
 ID3D11Buffer* boatIndicesBuffer;
+//Barrels
+ID3D11Buffer* barrelVertexBuffer;
+ID3D11Buffer* barrelIndicesBuffer;
 ID3D11InputLayout* vertexMeshLayout;
 ID3D11VertexShader* vertexMeshShader;
 ID3D11PixelShader* pixelMeshShader;
@@ -147,7 +149,6 @@ struct WVPMatrix
 	XMFLOAT4X4 viewMatrix;
 	XMFLOAT4X4 projMatrix;
 	XMFLOAT4 waveTime;
-	XMFLOAT4 waveSpeed;
 	XMFLOAT4 drawingBoat;
 }myMatrices;
 
@@ -185,7 +186,8 @@ void ReleaseInterfaces();
 unsigned int CreatePlane(MyVertex* array);
 void CreateSkyBox();
 void LoadDotMesh(const char* meshFileName, SimpleMesh& mesh);
-bool LoadOBJ(const char* meshFileName, SimpleOBJ& objMesh, MyVertex* vertArray, unsigned int* indicesArray, unsigned int* numVerts, unsigned int* numIndices);
+bool LoadOBJ(const char* meshFileName, SimpleOBJ& objMesh, MyVertex* vertArray, unsigned int* indicesArray, unsigned int* numIndices,
+				D3D11_BUFFER_DESC _bDesc, D3D11_SUBRESOURCE_DATA _sData, ID3D11Buffer** _vertBuffer, ID3D11Buffer** _indBuffer);
 void MakeLights();
 
 int APIENTRY wWinMain(_In_ HINSTANCE hInstance,
@@ -368,6 +370,7 @@ BOOL InitInstance(HINSTANCE hInstance, int nCmdShow)
 		hr = CreateDDSTextureFromFile(myDevice, L"Assets/pirateTex.dds", nullptr, &pirateTex);
 		hr = CreateDDSTextureFromFile(myDevice, L"Assets/dockTex.dds", nullptr, &dockTex);
 		hr = CreateDDSTextureFromFile(myDevice, L"Assets/boatTex.dds", nullptr, &boatTex);
+		hr = CreateDDSTextureFromFile(myDevice, L"Assets/barrelTex.dds", nullptr, &barrelTex);
 	}
 
 	//Time for the wave
@@ -406,72 +409,23 @@ BOOL InitInstance(HINSTANCE hInstance, int nCmdShow)
 	//Load Island
 	const char* filename = "Assets/island.obj";
 	SimpleOBJ OBJIsland;
-	LoadOBJ(filename, OBJIsland, islandArray, islandIndicesArray, &numIslandVertices, &numIslandIndices);
-	bDesc.BindFlags = D3D11_BIND_VERTEX_BUFFER;
-	bDesc.ByteWidth = sizeof(MyVertex) * numIslandVertices;
-	bDesc.CPUAccessFlags = 0;
-	bDesc.MiscFlags = 0;
-	bDesc.StructureByteStride = 0;
-	bDesc.Usage = D3D11_USAGE_IMMUTABLE;
-	subData.pSysMem = islandArray;
-	hr = myDevice->CreateBuffer(&bDesc, &subData, &islandVertexBuffer);
-	//index buffer mesh
-	bDesc.BindFlags = D3D11_BIND_INDEX_BUFFER;
-	bDesc.ByteWidth = sizeof(unsigned int) * numIslandIndices;
-	subData.pSysMem = islandIndicesArray;
-	hr = myDevice->CreateBuffer(&bDesc, &subData, &islandIndicesBuffer);
-
+	LoadOBJ(filename, OBJIsland, islandArray, islandIndicesArray, &numIslandIndices, bDesc, subData, &islandVertexBuffer, &islandIndicesBuffer);
 	//Load Pirate
 	filename = "Assets/pirate.obj";
 	SimpleOBJ OBJPirate;
-	LoadOBJ(filename, OBJPirate, pirateArray, pirateIndicesArray, &numPirateVertices, &numPirateIndices);
-	bDesc.BindFlags = D3D11_BIND_VERTEX_BUFFER;
-	bDesc.ByteWidth = sizeof(MyVertex) * numPirateVertices;
-	bDesc.CPUAccessFlags = 0;
-	bDesc.MiscFlags = 0;
-	bDesc.StructureByteStride = 0;
-	bDesc.Usage = D3D11_USAGE_IMMUTABLE;
-	subData.pSysMem = pirateArray;
-	hr = myDevice->CreateBuffer(&bDesc, &subData, &pirateVertexBuffer);
-	//index buffer mesh
-	bDesc.BindFlags = D3D11_BIND_INDEX_BUFFER;
-	bDesc.ByteWidth = sizeof(unsigned int) * numPirateIndices;
-	subData.pSysMem = pirateIndicesArray;
-	hr = myDevice->CreateBuffer(&bDesc, &subData, &pirateIndicesBuffer);
-
+	LoadOBJ(filename, OBJPirate, pirateArray, pirateIndicesArray, &numPirateIndices, bDesc, subData, &pirateVertexBuffer, &pirateIndicesBuffer);
+	//Load Long Dock
 	filename = "Assets/longDock.obj";
 	SimpleOBJ OBJLongDock;
-	LoadOBJ(filename, OBJLongDock, longDockArray, longDockIndicesArray, &numLongDockVertices, &numLongDockIndices);
-	bDesc.BindFlags = D3D11_BIND_VERTEX_BUFFER;
-	bDesc.ByteWidth = sizeof(MyVertex) * numLongDockVertices;
-	bDesc.CPUAccessFlags = 0;
-	bDesc.MiscFlags = 0;
-	bDesc.StructureByteStride = 0;
-	bDesc.Usage = D3D11_USAGE_IMMUTABLE;
-	subData.pSysMem = longDockArray;
-	hr = myDevice->CreateBuffer(&bDesc, &subData, &longDockVertexBuffer);
-	//index buffer mesh
-	bDesc.BindFlags = D3D11_BIND_INDEX_BUFFER;
-	bDesc.ByteWidth = sizeof(unsigned int) * numLongDockIndices;
-	subData.pSysMem = longDockIndicesArray;
-	hr = myDevice->CreateBuffer(&bDesc, &subData, &longDockIndicesBuffer);
-
+	LoadOBJ(filename, OBJLongDock, longDockArray, longDockIndicesArray, &numLongDockIndices, bDesc, subData, &longDockVertexBuffer, &longDockIndicesBuffer);
+	//Load Boat
 	filename = "Assets/smallBoat.obj";
 	SimpleOBJ OBJBoat;
-	LoadOBJ(filename, OBJBoat, boatArray, boatIndicesArray, &numBoatVertices, &numBoatIndices);
-	bDesc.BindFlags = D3D11_BIND_VERTEX_BUFFER;
-	bDesc.ByteWidth = sizeof(MyVertex) * numBoatVertices;
-	bDesc.CPUAccessFlags = 0;
-	bDesc.MiscFlags = 0;
-	bDesc.StructureByteStride = 0;
-	bDesc.Usage = D3D11_USAGE_IMMUTABLE;
-	subData.pSysMem = boatArray;
-	hr = myDevice->CreateBuffer(&bDesc, &subData, &boatVertexBuffer);
-	//index buffer mesh
-	bDesc.BindFlags = D3D11_BIND_INDEX_BUFFER;
-	bDesc.ByteWidth = sizeof(unsigned int) * numBoatIndices;
-	subData.pSysMem = boatIndicesArray;
-	hr = myDevice->CreateBuffer(&bDesc, &subData, &boatIndicesBuffer);
+	LoadOBJ(filename, OBJBoat, boatArray, boatIndicesArray, &numBoatIndices, bDesc, subData, &boatVertexBuffer, &boatIndicesBuffer);
+	//Load Barrel
+	filename = "Assets/barrel.obj";
+	SimpleOBJ OBJBarrel;
+	LoadOBJ(filename, OBJBarrel, barrelArray, barrelIndicesArray, &numBarrelIndices, bDesc, subData, &barrelVertexBuffer, &barrelIndicesBuffer);
 
 	//Load new mesh shader
 	hr = myDevice->CreateVertexShader(VertexMeshShader, sizeof(VertexMeshShader), nullptr, &vertexMeshShader);
@@ -623,9 +577,6 @@ void Render()
 	waveTime = { (waveTime.x + 0.05f), 0.0f, 0.0f, 0.0f };
 	XMVECTOR tempTime = { waveTime.x, waveTime.y, waveTime.z, waveTime.w };
 	XMStoreFloat4(&myMatrices.waveTime, tempTime);
-	//speed
-	waveSpeed = { 5.0f, 0.0f, 0.0f, 0.0f };
-	XMStoreFloat4(&myMatrices.waveSpeed, waveSpeed);
 
 	//Setup the pipeline
 	//Output merger
@@ -687,7 +638,7 @@ void Render()
 	XMStoreFloat4x4(&myMatrices.worldMatrix, pirateMatrix);
 	UploadToVideoCard();
 	myDeviceContext->DrawIndexed(numPirateIndices, 0, 0);
-
+	
 	//Draw Long Dock
 	tempMeshVertexBuffer = longDockVertexBuffer;
 	myDeviceContext->IASetVertexBuffers(0, 1, &tempMeshVertexBuffer, meshStrides, meshOffsets);
@@ -697,6 +648,20 @@ void Render()
 	XMStoreFloat4x4(&myMatrices.worldMatrix, longDockMatrix);
 	UploadToVideoCard();
 	myDeviceContext->DrawIndexed(numLongDockIndices, 0, 0);
+
+	//Draw Barrels
+	tempMeshVertexBuffer = barrelVertexBuffer;
+	myDeviceContext->IASetVertexBuffers(0, 1, &tempMeshVertexBuffer, meshStrides, meshOffsets);
+	myDeviceContext->IASetIndexBuffer(barrelIndicesBuffer, DXGI_FORMAT_R32_UINT, 0);
+	myDeviceContext->PSSetShaderResources(0, 1, &barrelTex);
+	XMMATRIX barrelMatrix = XMMatrixTranslation(38.0f, 1.0f, -28.5f);
+	XMStoreFloat4x4(&myMatrices.worldMatrix, barrelMatrix);
+	UploadToVideoCard();
+	myDeviceContext->DrawIndexed(numBarrelIndices, 0, 0);
+	barrelMatrix = XMMatrixTranslation(36.0f, 1.0f, -28.5f);
+	XMStoreFloat4x4(&myMatrices.worldMatrix, barrelMatrix);
+	UploadToVideoCard();
+	myDeviceContext->DrawIndexed(numBarrelIndices, 0, 0);
 
 	//Draw Sand
 	tempMeshVertexBuffer = sandVertexBuffer;
@@ -747,16 +712,7 @@ void ReleaseInterfaces()
 	pirateTex->Release();
 	dockTex->Release();
 	boatTex->Release();
-	lightConstantBuffer->Release();
-	samplerLinear->Release();
-	zBuffer->Release();
-	zBufferView->Release();
-	vertexMeshLayout->Release();
-	vertexMeshShader->Release();
-	waterShader->Release();
-	pixelMeshShader->Release();
-	waterPixelShader->Release();
-	myRenderTargetView->Release();
+	barrelTex->Release();
 	waterVertexBuffer->Release();
 	skyBoxVertexBuffer->Release();
 	islandVertexBuffer->Release();
@@ -768,6 +724,18 @@ void ReleaseInterfaces()
 	longDockIndicesBuffer->Release();
 	boatVertexBuffer->Release();
 	boatIndicesBuffer->Release();
+	barrelVertexBuffer->Release();
+	barrelIndicesBuffer->Release();
+	lightConstantBuffer->Release();
+	zBuffer->Release();
+	zBufferView->Release();
+	samplerLinear->Release();
+	vertexMeshLayout->Release();
+	vertexMeshShader->Release();
+	waterShader->Release();
+	pixelMeshShader->Release();
+	waterPixelShader->Release();
+	myRenderTargetView->Release();
 	constantBuffer->Release();
 	myDeviceContext->Release();
 	mySwapChain->Release();
@@ -948,7 +916,8 @@ void LoadDotMesh(const char* meshFileName, SimpleMesh& mesh)
 	file.close();
 }
 
-bool LoadOBJ(const char* meshFileName, SimpleOBJ& objMesh, MyVertex* vertArray, unsigned int* indicesArray, unsigned int* numVerts, unsigned int* numIndices)
+bool LoadOBJ(const char* meshFileName, SimpleOBJ& objMesh, MyVertex* vertArray, unsigned int* indicesArray, unsigned int* numIndices,
+				D3D11_BUFFER_DESC _bDesc, D3D11_SUBRESOURCE_DATA _sData, ID3D11Buffer** _vertBuffer, ID3D11Buffer** _indBuffer)
 {
 	vector<unsigned int> vertexIndices, uvIndices, normalIndices;
 	vector<MyVec3> tempVertices;
@@ -1036,20 +1005,33 @@ bool LoadOBJ(const char* meshFileName, SimpleOBJ& objMesh, MyVertex* vertArray, 
 		objMesh.indicesList.push_back(i);
 	}
 
-	*numVerts = objMesh.vertexList.size();
 	*numIndices = objMesh.indicesList.size();
-
+	
 	//Populate Vertex Array
 	for (unsigned int i = 0; i < objMesh.vertexList.size(); i++)
 	{
 		vertArray[i] = objMesh.vertexList[i];
 	}
-
+	
 	//Populate Indices Array
 	for (unsigned int i = 0; i < objMesh.indicesList.size(); i++)
 	{
 		indicesArray[i] = objMesh.indicesList[i];
 	}
+
+	_bDesc.BindFlags = D3D11_BIND_VERTEX_BUFFER;
+	_bDesc.ByteWidth = sizeof(MyVertex) * objMesh.vertexList.size();
+	_bDesc.CPUAccessFlags = 0;
+	_bDesc.MiscFlags = 0;
+	_bDesc.StructureByteStride = 0;
+	_bDesc.Usage = D3D11_USAGE_IMMUTABLE;
+	_sData.pSysMem = vertArray;
+	HRESULT hr = myDevice->CreateBuffer(&_bDesc, &_sData, _vertBuffer);
+	//index buffer mesh
+	_bDesc.BindFlags = D3D11_BIND_INDEX_BUFFER;
+	_bDesc.ByteWidth = sizeof(unsigned int) * objMesh.indicesList.size();
+	_sData.pSysMem = indicesArray;
+	hr = myDevice->CreateBuffer(&_bDesc, &_sData, _indBuffer);
 }
 
 void MakeLights()
