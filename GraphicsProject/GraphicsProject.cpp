@@ -74,9 +74,15 @@ unsigned int numLongDockIndices = 0;
 MyVertex* boatArray = new MyVertex[2094];
 unsigned int* boatIndicesArray = new unsigned int[2094];
 unsigned int numBoatIndices = 0;
-MyVertex* barrelArray = new MyVertex[2094];
-unsigned int* barrelIndicesArray = new unsigned int[2094];
+MyVertex* barrelArray = new MyVertex[948];
+unsigned int* barrelIndicesArray = new unsigned int[948];
 unsigned int numBarrelIndices = 0;
+MyVertex* tentArray = new MyVertex[1632];
+unsigned int* tentIndicesArray = new unsigned int[1632];
+unsigned int numTentIndices = 0;
+MyVertex* pirateShipArray = new MyVertex[4362];
+unsigned int* pirateShipIndicesArray = new unsigned int[4362];
+unsigned int numPirateShipIndices = 0;
 
 //Screen Varibales
 float screenWidth;
@@ -108,6 +114,8 @@ ID3D11ShaderResourceView* pirateTex;
 ID3D11ShaderResourceView* dockTex;
 ID3D11ShaderResourceView* boatTex;
 ID3D11ShaderResourceView* barrelTex;
+ID3D11ShaderResourceView* tentTex;
+ID3D11ShaderResourceView* pirateShipTex;
 
 //Mesh data
 //Water
@@ -116,7 +124,6 @@ ID3D11Buffer* waterVertexBuffer;
 ID3D11Buffer* sandVertexBuffer;
 //Skybox
 ID3D11Buffer* skyBoxVertexBuffer;
-ID3D11Buffer* skyBoxIndicesBuffer;
 //Island
 ID3D11Buffer* islandVertexBuffer;
 ID3D11Buffer* islandIndicesBuffer;
@@ -132,6 +139,12 @@ ID3D11Buffer* boatIndicesBuffer;
 //Barrels
 ID3D11Buffer* barrelVertexBuffer;
 ID3D11Buffer* barrelIndicesBuffer;
+//Tent
+ID3D11Buffer* tentVertexBuffer;
+ID3D11Buffer* tentIndicesBuffer;
+//Pirate Ship
+ID3D11Buffer* pirateShipVertexBuffer;
+ID3D11Buffer* pirateShipIndicesBuffer;
 ID3D11InputLayout* vertexMeshLayout;
 ID3D11VertexShader* vertexMeshShader;
 ID3D11PixelShader* pixelMeshShader;
@@ -165,6 +178,7 @@ struct Lights
 	XMFLOAT4 vSpotLightConeRatio;
 	XMFLOAT4 drawingSkybox;
 	XMFLOAT4 vWaterTime;
+	XMFLOAT4 vCameraPos;
 }myLights;
 
 #define MAX_LOADSTRING 100
@@ -371,6 +385,8 @@ BOOL InitInstance(HINSTANCE hInstance, int nCmdShow)
 		hr = CreateDDSTextureFromFile(myDevice, L"Assets/dockTex.dds", nullptr, &dockTex);
 		hr = CreateDDSTextureFromFile(myDevice, L"Assets/boatTex.dds", nullptr, &boatTex);
 		hr = CreateDDSTextureFromFile(myDevice, L"Assets/barrelTex.dds", nullptr, &barrelTex);
+		hr = CreateDDSTextureFromFile(myDevice, L"Assets/tentTex.dds", nullptr, &tentTex);
+		hr = CreateDDSTextureFromFile(myDevice, L"Assets/pirateShipTex.dds", nullptr, &pirateShipTex);
 	}
 
 	//Time for the wave
@@ -426,6 +442,14 @@ BOOL InitInstance(HINSTANCE hInstance, int nCmdShow)
 	filename = "Assets/barrel.obj";
 	SimpleOBJ OBJBarrel;
 	LoadOBJ(filename, OBJBarrel, barrelArray, barrelIndicesArray, &numBarrelIndices, bDesc, subData, &barrelVertexBuffer, &barrelIndicesBuffer);
+	//Load Tent
+	filename = "Assets/tent.obj";
+	SimpleOBJ OBJTent;
+	LoadOBJ(filename, OBJTent, tentArray, tentIndicesArray, &numTentIndices, bDesc, subData, &tentVertexBuffer, &tentIndicesBuffer);
+	//Load Pirate Ship
+	filename = "Assets/pirateShip.obj";
+	SimpleOBJ OBJPirateShip;
+	LoadOBJ(filename, OBJPirateShip, pirateShipArray, pirateShipIndicesArray, &numPirateShipIndices, bDesc, subData, &pirateShipVertexBuffer, &pirateShipIndicesBuffer);
 
 	//Load new mesh shader
 	hr = myDevice->CreateVertexShader(VertexMeshShader, sizeof(VertexMeshShader), nullptr, &vertexMeshShader);
@@ -570,6 +594,7 @@ void Render()
 	XMStoreFloat4x4(&myMatrices.worldMatrix, temp);
 	//view
 	XMStoreFloat4x4(&myMatrices.viewMatrix, camView);
+	XMStoreFloat4(&myLights.vCameraPos, camPosition);
 	//projection
 	temp = XMMatrixPerspectiveFovLH(3.14 / FOVDivider, aspectRatio, nearPlane, farPlane);
 	XMStoreFloat4x4(&myMatrices.projMatrix, temp);
@@ -607,7 +632,6 @@ void Render()
 	//Draw Skybox
 	ID3D11Buffer* tempMeshVertexBuffer = skyBoxVertexBuffer;
 	myDeviceContext->IASetVertexBuffers(0, 1, &tempMeshVertexBuffer, meshStrides, meshOffsets);
-	myDeviceContext->IASetIndexBuffer(skyBoxIndicesBuffer, DXGI_FORMAT_R32_UINT, 0);
 	myDeviceContext->PSSetShaderResources(1, 1, &skyboxTex);
 	XMMATRIX skyboxMatrix = XMMatrixTranslation(XMVectorGetX(camPosition), XMVectorGetY(camPosition), XMVectorGetZ(camPosition));
 	XMStoreFloat4x4(&myMatrices.worldMatrix, skyboxMatrix);
@@ -663,6 +687,30 @@ void Render()
 	UploadToVideoCard();
 	myDeviceContext->DrawIndexed(numBarrelIndices, 0, 0);
 
+	//Draw Tent
+	tempMeshVertexBuffer = tentVertexBuffer;
+	myDeviceContext->IASetVertexBuffers(0, 1, &tempMeshVertexBuffer, meshStrides, meshOffsets);
+	myDeviceContext->IASetIndexBuffer(tentIndicesBuffer, DXGI_FORMAT_R32_UINT, 0);
+	myDeviceContext->PSSetShaderResources(0, 1, &tentTex);
+	XMMATRIX tentMatrix = XMMatrixTranslation(15.0f, 1.6f, -22.5f);
+	XMMATRIX tentRotation = XMMatrixRotationY(45);
+	tentMatrix = XMMatrixMultiply(tentRotation, tentMatrix);
+	XMStoreFloat4x4(&myMatrices.worldMatrix, tentMatrix);
+	UploadToVideoCard();
+	myDeviceContext->DrawIndexed(numTentIndices, 0, 0);
+
+	//Draw Pirate Ship
+	tempMeshVertexBuffer = pirateShipVertexBuffer;
+	myDeviceContext->IASetVertexBuffers(0, 1, &tempMeshVertexBuffer, meshStrides, meshOffsets);
+	myDeviceContext->IASetIndexBuffer(pirateShipIndicesBuffer, DXGI_FORMAT_R32_UINT, 0);
+	myDeviceContext->PSSetShaderResources(0, 1, &pirateShipTex);
+	XMMATRIX pirateShipMatrix = XMMatrixTranslation(70.0f, 2.5f, 40.0f);
+	XMMATRIX pirateShipRotation = XMMatrixRotationY(65);
+	pirateShipMatrix = XMMatrixMultiply(pirateShipRotation, pirateShipMatrix);
+	XMStoreFloat4x4(&myMatrices.worldMatrix, pirateShipMatrix);
+	UploadToVideoCard();
+	myDeviceContext->DrawIndexed(numPirateShipIndices, 0, 0);
+
 	//Draw Sand
 	tempMeshVertexBuffer = sandVertexBuffer;
 	myDeviceContext->IASetVertexBuffers(0, 1, &tempMeshVertexBuffer, meshStrides, meshOffsets);
@@ -713,6 +761,8 @@ void ReleaseInterfaces()
 	dockTex->Release();
 	boatTex->Release();
 	barrelTex->Release();
+	tentTex->Release();
+	pirateShipTex->Release();
 	waterVertexBuffer->Release();
 	skyBoxVertexBuffer->Release();
 	islandVertexBuffer->Release();
@@ -726,6 +776,10 @@ void ReleaseInterfaces()
 	boatIndicesBuffer->Release();
 	barrelVertexBuffer->Release();
 	barrelIndicesBuffer->Release();
+	tentVertexBuffer->Release();
+	tentIndicesBuffer->Release();
+	pirateShipVertexBuffer->Release();
+	pirateShipIndicesBuffer->Release();
 	lightConstantBuffer->Release();
 	zBuffer->Release();
 	zBufferView->Release();

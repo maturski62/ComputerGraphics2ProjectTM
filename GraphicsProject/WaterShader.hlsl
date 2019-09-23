@@ -39,8 +39,6 @@ OutputVertex main(InputVertex input)
         float2 planePos = float2(output.pos.x, output.pos.z);
         float dotProduct = dot(float2(1, 1), planePos);
         output.pos.y += amplitude * cos((dotProduct * frequency) + waveTime.x);
-        //output.nrm.x -= amplitude * frequency * cos(dotProduct * frequency + waveTime.x);
-        //output.nrm.z -= amplitude * frequency * cos(dotProduct * frequency + waveTime.x);
     }
     else
     {

@@ -1,7 +1,12 @@
-newmtl lambert2SG
-illum 4
-Kd 0.00 0.00 0.00
-Ka 0.00 0.00 0.00
-Tf 1.00 1.00 1.00
+#
+#
+#
+
+newmtl Plane003 Mesh_lambert2SG
+illum 2
+Ka 0.000000 0.000000 0.000000
+Kd 0.000000 0.000000 0.000000
+Ks 0.000000 0.000000 0.000000
+Ns 0.000000
 map_Kd 03_-_Default_Base_Color.png
-Ni 1.00
+
