@@ -67,4 +67,7 @@
     <FxCompile Include="WaterShader.hlsl" />
     <FxCompile Include="WaterPixelShader.hlsl" />
   </ItemGroup>
+  <ItemGroup>
+    <None Include="functions.hlsli" />
+  </ItemGroup>
 </Project>

@@ -163,6 +163,7 @@ struct WVPMatrix
 	XMFLOAT4X4 projMatrix;
 	XMFLOAT4 waveTime;
 	XMFLOAT4 drawingBoat;
+	XMFLOAT4 vCameraPos;
 }myMatrices;
 
 struct Lights
@@ -514,6 +515,8 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
 {
 	switch (message)
 	{
+	case WM_SIZE:
+		break;
 	case WM_MOUSEWHEEL:
 		deltaWheel += GET_WHEEL_DELTA_WPARAM(wParam);
  		break;
@@ -592,9 +595,11 @@ void Render()
 	XMMATRIX temp = XMMatrixIdentity();
 	temp = XMMatrixTranslation(0.0f, 0.0f, 0.0f);
 	XMStoreFloat4x4(&myMatrices.worldMatrix, temp);
+	//XMVECTOR tempCamPos = XMVector3TransformCoord(camPosition, XMMatrixIdentity());
+	XMStoreFloat4(&myLights.vCameraPos, XMMatrixInverse(nullptr, camView).r[3]);
+	XMStoreFloat4(&myMatrices.vCameraPos, XMMatrixInverse(nullptr, camView).r[3]);
 	//view
 	XMStoreFloat4x4(&myMatrices.viewMatrix, camView);
-	XMStoreFloat4(&myLights.vCameraPos, camPosition);
 	//projection
 	temp = XMMatrixPerspectiveFovLH(3.14 / FOVDivider, aspectRatio, nearPlane, farPlane);
 	XMStoreFloat4x4(&myMatrices.projMatrix, temp);
@@ -659,6 +664,7 @@ void Render()
 	XMMATRIX pirateMatrix = XMMatrixTranslation(25.0f, 1.45f, -15.0f);
 	XMMATRIX rotation = XMMatrixRotationY(135);
 	pirateMatrix = XMMatrixMultiply(rotation, pirateMatrix);
+	pirateMatrix = XMMatrixMultiply(XMMatrixScaling(3.0f, 3.0f, 3.0f), pirateMatrix);
 	XMStoreFloat4x4(&myMatrices.worldMatrix, pirateMatrix);
 	UploadToVideoCard();
 	myDeviceContext->DrawIndexed(numPirateIndices, 0, 0);
@@ -1091,7 +1097,7 @@ bool LoadOBJ(const char* meshFileName, SimpleOBJ& objMesh, MyVertex* vertArray, 
 void MakeLights()
 {
 	//Direction Light
-	lightDir = { 1.0f, 0.9f, 0.0f, 1.0f };
+	lightDir = { -1.0f, -0.9f, 0.0f, 1.0f };
 	//static float dirLightAngle = 0.0f; dirLightAngle += 0.005f;
 	//XMMATRIX dirLightRotation = XMMatrixRotationZ(-dirLightAngle);
 	//lightDir = XMVector4Transform(lightDir, dirLightRotation);

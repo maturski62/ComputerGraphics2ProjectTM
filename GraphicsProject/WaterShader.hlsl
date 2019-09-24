@@ -23,6 +23,7 @@ cbuffer CONSTANT_BUFFER : register(b0)
     float4x4 projMatrix;
     float4 waveTime;
     float4 drawingBoat;
+    float4 vCameraPos;
 }
 
 OutputVertex main(InputVertex input)
@@ -39,6 +40,8 @@ OutputVertex main(InputVertex input)
         float2 planePos = float2(output.pos.x, output.pos.z);
         float dotProduct = dot(float2(1, 1), planePos);
         output.pos.y += amplitude * cos((dotProduct * frequency) + waveTime.x);
+        output.nrm.x -= amplitude * frequency * sin(dotProduct * frequency + waveTime.x);
+        output.nrm.z -= amplitude * frequency * sin(dotProduct * frequency + waveTime.x);
     }
     else
     {
@@ -50,7 +53,7 @@ OutputVertex main(InputVertex input)
         output.nrm.x -= amplitude * frequency * cos(dotProduct * frequency + waveTime.x);
         output.nrm.z -= amplitude * frequency * cos(dotProduct * frequency + waveTime.x);
     }
-
+    
 	// Do math here (shader intrinsics)
     output.localPos = output.pos;
     output.pos = mul(output.pos, worldMatrix);

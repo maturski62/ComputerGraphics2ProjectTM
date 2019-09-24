@@ -2,6 +2,7 @@
 Texture2D Diffuse : register(t0);
 TextureCube skybox : register(t1);
 SamplerState samLinear : register(s0);
+#include "functions.hlsli"
 
 struct OutputVertex
 {
@@ -24,6 +25,7 @@ cbuffer PSConstantBuffer : register(b1)
     float4 vSpotLightColor;
     float4 vSpotLightConeRatio;
     float4 drawingSkybox;
+    float4 vWaterTime;
     float4 vCameraPos;
 }
 
@@ -47,6 +49,7 @@ float4 main(OutputVertex inputPixel) : SV_TARGET
     float4 spotLightColor = 0;
     float spotLightRange = 10.0f;
     float attenuation = 0;
+    float4 specularColor = 0;
 
     //Center Point Light
     //float4 pointLightDir = normalize(vPointLightPos - inputPixel.worldPos);
@@ -71,17 +74,29 @@ float4 main(OutputVertex inputPixel) : SV_TARGET
     //float specular
 
     //Directional Light
-    directionLightColor += saturate(dot(vLightDir, float4(inputPixel.nrm, 0)) * vLightColor);
+    directionLightColor += saturate(dot(-normalize(vLightDir), float4(inputPixel.nrm, 0)) * vLightColor);
 
     //Specular
-    float4 viewDir = normalize(vCameraPos - inputPixel.worldPos);
-    float4 halfVector = normalize((vLightDir) + viewDir);
-    float intensity = max(pow(saturate(dot(float4(inputPixel.nrm, 0), normalize(halfVector))), 4), 0);
-    float specularColor = vLightColor * 5.0f * intensity;
+    //float3 vDirectionLight = (vLightDir.x, vLightDir.y, vLightDir.z);
+    //float4 viewDir = normalize(vCameraPos - inputPixel.worldPos);
+    //float4 halfVector = normalize(vLightDir + viewDir);
+    //float amountOfSpec = dot(float4(inputPixel.nrm, 0), normalize(halfVector));
+    //float intensity = max(pow(saturate(amountOfSpec), 4), 0);
+    //specularColor = vLightColor * intensity;
+    //float4 lightDir = normalize(inputPixel.worldPos);
+    //float4 vReflect = reflect(-lightDir, float4(inputPixel.nrm, 0));
+    //float4 vToCam = normalize(vCameraPos - inputPixel.worldPos);
+    //float specDot = dot(vToCam, vReflect);
+    //specDot = saturate(specDot);
+    //specDot = pow(specDot, 100);
+    //specularColor = vLightColor * specDot;
+    float specIntensity = MakeSpecular(-normalize(vLightDir), vCameraPos, inputPixel.worldPos, normalize(float4(inputPixel.nrm, 0)), SPECPOWER, 1.0f);
+    specularColor = vLightColor * specIntensity;
 
-    finalColor = directionLightColor + pointLightColor + spotLightColor + specularColor;
+    finalColor += directionLightColor + pointLightColor + spotLightColor;
     finalColor *= Diffuse.Sample(samLinear, inputPixel.tex);
-    finalColor.a = 1.0f;
+    //finalColor.a = 1.0f;
+    finalColor += specularColor;
     
 	return finalColor;
 }
