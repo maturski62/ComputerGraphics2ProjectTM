@@ -516,6 +516,54 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
 	switch (message)
 	{
 	case WM_SIZE:
+		RECT myWindow;
+		GetClientRect(hWnd, &myWindow);
+		screenWidth = myWindow.right - myWindow.left;
+		screenHeight = myWindow.bottom - myWindow.top;
+		myViewPort.Width = screenWidth;
+		myViewPort.Height = screenHeight;
+		myViewPort.MinDepth = 0.0f;
+		myViewPort.MaxDepth = 1.0f;
+		myViewPort.TopLeftX = 0;
+		myViewPort.TopLeftY = 0;
+		aspectRatio = screenWidth / screenHeight;
+		
+		if (mySwapChain)
+		{
+			myDeviceContext->OMSetRenderTargets(0, 0, 0);
+			myRenderTargetView->Release();
+			zBuffer->Release();
+			zBufferView->Release();
+		
+			HRESULT hr;
+			hr = mySwapChain->ResizeBuffers(0, 0, 0, DXGI_FORMAT_UNKNOWN, 0);
+		
+			ID3D11Resource* backbuffer;
+			hr = mySwapChain->GetBuffer(0, __uuidof(backbuffer), (void**)& backbuffer);
+			if (backbuffer)
+			{
+				hr = myDevice->CreateRenderTargetView(backbuffer, NULL, &myRenderTargetView);
+			}
+			backbuffer->Release();
+		
+			myDeviceContext->OMSetRenderTargets(1, &myRenderTargetView, NULL);
+		
+			D3D11_TEXTURE2D_DESC zDesc;
+			ZeroMemory(&zDesc, sizeof(zDesc));
+			zDesc.ArraySize = 1;
+			zDesc.BindFlags = D3D11_BIND_DEPTH_STENCIL;
+			zDesc.Width = screenWidth;
+			zDesc.Height = screenHeight;
+			zDesc.Format = DXGI_FORMAT_D32_FLOAT;
+			zDesc.Usage = D3D11_USAGE_DEFAULT;
+			zDesc.MipLevels = 1;
+			zDesc.SampleDesc.Count = 1;
+			hr = myDevice->CreateTexture2D(&zDesc, nullptr, &zBuffer);
+			if (zBuffer)
+			{
+				hr = myDevice->CreateDepthStencilView(zBuffer, nullptr, &zBufferView);
+			}
+		}
 		break;
 	case WM_MOUSEWHEEL:
 		deltaWheel += GET_WHEEL_DELTA_WPARAM(wParam);
@@ -664,7 +712,7 @@ void Render()
 	XMMATRIX pirateMatrix = XMMatrixTranslation(25.0f, 1.45f, -15.0f);
 	XMMATRIX rotation = XMMatrixRotationY(135);
 	pirateMatrix = XMMatrixMultiply(rotation, pirateMatrix);
-	pirateMatrix = XMMatrixMultiply(XMMatrixScaling(3.0f, 3.0f, 3.0f), pirateMatrix);
+	//pirateMatrix = XMMatrixMultiply(XMMatrixScaling(3.0f, 3.0f, 3.0f), pirateMatrix);
 	XMStoreFloat4x4(&myMatrices.worldMatrix, pirateMatrix);
 	UploadToVideoCard();
 	myDeviceContext->DrawIndexed(numPirateIndices, 0, 0);
