@@ -29,16 +29,14 @@ float4 main(OutputVertex inputPixel) : SV_TARGET
     directionLightColor += saturate(dot(vLightDir, float4(inputPixel.nrm, 0)) * vLightColor);
 
     //Reflection Color
-    //float4 lightPos = (200.0f, 50.0f, 0.0f, 1.0f);
-    //float4 vLightDir = normalize(inputPixel.worldPos - lightPos);
-    //float4 vReflect = reflect(vLightDir, float4(inputPixel.nrm, 0));
-    //float4 vToCam = normalize(vCameraPos - inputPixel.worldPos);
-    //float specDot = dot(vToCam, vReflect);
-    //specDot = saturate(specDot);
-    //specDot = pow(specDot, 128);
-    //reflectColor += vLightColor * specDot;
+    float4 reflectVec = reflect(vLightDir, float4(inputPixel.nrm, 0));
+    //Specular
+    float4 viewDir = normalize(vCameraPos - inputPixel.worldPos);
+    float4 halfVector = normalize((vLightDir) + viewDir);
+    float intensity = max(pow(saturate(dot(float4(inputPixel.nrm, 0), normalize(halfVector))), 4), 0);
+    float specularColor = vLightColor * 5.0f * intensity;
     //Final Color
-    finalColor = directionLightColor;// + reflectColor;
+    finalColor = directionLightColor + reflectColor + specularColor;
     finalColor *= Diffuse.Sample(samLinear, inputPixel.tex);
     //finalColor.a = 1.0f;
     

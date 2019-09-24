@@ -24,6 +24,7 @@ cbuffer PSConstantBuffer : register(b1)
     float4 vSpotLightColor;
     float4 vSpotLightConeRatio;
     float4 drawingSkybox;
+    float4 vCameraPos;
 }
 
 float4 main(OutputVertex inputPixel) : SV_TARGET
@@ -64,11 +65,21 @@ float4 main(OutputVertex inputPixel) : SV_TARGET
     //attenuation *= 1.0f - saturate((innerAngle - surfaceRatio) / (innerAngle - outerAngle));
     //attenuation *= attenuation;
     //spotLightColor = (amountOfSpotLight * vSpotLightColor) * attenuation;
+    //float4 viewDir = normalize(vCameraPos - inputPixel.worldPos);
+    //float4 halfVector = normalize((-vLightDir) + viewDir);
+    //float intensity = max(pow(saturate(dot(float4(inputPixel.nrm, 0), normalize(halfVector))), 4), 0);
+    //float specular
 
     //Directional Light
     directionLightColor += saturate(dot(vLightDir, float4(inputPixel.nrm, 0)) * vLightColor);
 
-    finalColor = directionLightColor + pointLightColor + spotLightColor;
+    //Specular
+    float4 viewDir = normalize(vCameraPos - inputPixel.worldPos);
+    float4 halfVector = normalize((vLightDir) + viewDir);
+    float intensity = max(pow(saturate(dot(float4(inputPixel.nrm, 0), normalize(halfVector))), 4), 0);
+    float specularColor = vLightColor * 5.0f * intensity;
+
+    finalColor = directionLightColor + pointLightColor + spotLightColor + specularColor;
     finalColor *= Diffuse.Sample(samLinear, inputPixel.tex);
     finalColor.a = 1.0f;
     

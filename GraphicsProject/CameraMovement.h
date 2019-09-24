@@ -9,7 +9,7 @@ XMVECTOR camForward = XMVectorSet(0.0f, 0.0f, 1.0f, 0.0f);
 XMVECTOR camRight = XMVectorSet(1.0f, 0.0f, 0.0f, 0.0f);
 XMVECTOR camUp = XMVectorSet(0.0f, 1.0f, 0.0f, 0.0f);
 XMVECTOR camPosition = XMVectorSet(69.0f, 13.0f, -50.0f, 1.0f);
-XMVECTOR camTarget = XMVectorSet(68.0f, 13.0f, -49.0f, 2.0f);;
+XMVECTOR camTarget;
 
 XMMATRIX camRotationMatrix;
 XMMATRIX groundWorld;
@@ -18,7 +18,7 @@ float moveLeftRight = 0.0f;
 float moveBackForward = 0.0f;
 float moveUpDown = 0.0f;
 
-float camYaw = 0.0f;
+float camYaw = -1.6f;
 float camPitch = 0.0f;
 
 float speed = 0.5f;

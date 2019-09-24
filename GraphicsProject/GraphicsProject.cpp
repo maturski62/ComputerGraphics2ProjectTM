@@ -372,7 +372,6 @@ BOOL InitInstance(HINSTANCE hInstance, int nCmdShow)
 	//Create Water and Skybox
 	numWaterVertices = CreatePlane(waterPlane);
 	numSandVertices = CreatePlane(sandPlane);
-	CreateSkyBox();
 
 	//Creating Texture
 	if (myDevice)
@@ -393,6 +392,7 @@ BOOL InitInstance(HINSTANCE hInstance, int nCmdShow)
 	waveTime = { 0.0f, 0.0f, 0.0f, 0.0f };
 
 	//Load Skybox
+	CreateSkyBox();
 	bDesc.BindFlags = D3D11_BIND_VERTEX_BUFFER;
 	bDesc.ByteWidth = sizeof(MyVertex) * numSkyboxVertices;
 	bDesc.CPUAccessFlags = 0;
