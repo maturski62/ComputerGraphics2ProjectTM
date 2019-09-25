@@ -28,6 +28,7 @@ ID3D11DeviceContext* myDeviceContext;
 //For drawing
 ID3D11RenderTargetView* myRenderTargetView;
 D3D11_VIEWPORT myViewPort;
+D3D11_VIEWPORT mySecondViewPort;
 float aspectRatio = 1;
 
 struct MyVertex

@@ -15,8 +15,3 @@ HOLD LBUTTON - Doesn't track mouse position(allows you to rotate more)
 	   K - Near Plane backward
 	   O - Far Plane forward
 	   L - Far Plane backward
-
-Axe is loaded as a .mesh file
-Directional Light changes direction.
-Spotlight is rotating and changind direction(can be seen going by the stone henge pillars).
-Water plane is proceduarly genertated and has it's own vertex and pixel shader.
